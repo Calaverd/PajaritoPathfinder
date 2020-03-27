@@ -216,6 +216,8 @@ end
   -- index = pajarito.getIndexOfNode(25,10)
 
 function pajarito.getIndexOfNode(node_x,node_y)
+    node_y = math.min(map_height,math.max(node_y,1))
+    node_x = math.min(map_width,math.max(node_x,1))
     return ( ( node_y * map_width ) + node_x )
 end
 
@@ -243,7 +245,7 @@ end
   -- @return boolean __true__ if the point exist __false__ otherwise 
   
   -- @usage
-  -- -- Use to get if a point x,y exist on the grid
+  -- -- Use to know if a point x,y exist on the grid
   --  is_on_grid = pajarito.isNodeOnGrid(20,50)
   
 function pajarito.isNodeOnGrid(x,y)
@@ -619,6 +621,7 @@ function pajarito.getNodesOnRange(node_x,node_y,range)
                 end
             else
                 pajarito.markBorderNode(node.x,node.y,node)
+                --check if it is sourronded
             end
         end
     end
@@ -645,16 +648,60 @@ function pajarito.getPathInsideRange(x,y)
     local index = pajarito.getIndexOfNode(x,y)
     
     if not lst_marked_nodes[index] then
-        --print('Point is not on range',2)
+        --print('Point is not in range',2)
         return path_of_nodes 
     end
-    --exist the point on the marked ones...
+    --exits the point on the marked ones...
     while lst_marked_nodes[index] or index ~= nil do
         local node = lst_marked_nodes[index]
-        table.insert(path_of_nodes,1,node)
         lst_nodes_on_path[index] = true
         --print(node.x,node.y) 
-        index = node.father
+        index = nil
+        if node then
+            table.insert(path_of_nodes,1,node)
+            local father = node.father
+            local node_x = node.x
+            local node_y = node.y
+            local fd = -1
+            index = father
+            if lst_marked_nodes[father] then
+                fd = lst_marked_nodes[father].d
+            end
+            --some times is posible than the fater is not the best candidate...
+            local tmp_node = nil
+            if lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y-1)] then
+                temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y-1)]
+                if temp_node.d < fd then
+                    fd = temp_node.d
+                    index = pajarito.getIndexOfNode(node_x,node_y-1)
+                end
+            end
+            temp_node = nil
+            if lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y+1)] then
+                temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y+1)]
+                if temp_node.d < fd then
+                    fd = temp_node.d
+                    index = pajarito.getIndexOfNode(node_x,node_y+1)
+                end
+            end
+            temp_node = nil
+            if lst_marked_nodes[pajarito.getIndexOfNode(node_x-1,node_y)] then
+                temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x-1,node_y)]
+                if temp_node.d < fd then
+                    fd = temp_node.d
+                    index = pajarito.getIndexOfNode(node_x-1,node_y)
+                end
+            end
+            temp_node = nil
+            if lst_marked_nodes[pajarito.getIndexOfNode(node_x+1,node_y)] then
+                temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x+1,node_y)]
+                if temp_node.d < fd then
+                    fd = temp_node.d
+                    index = pajarito.getIndexOfNode(node_x+1,node_y)
+                end
+            end
+        end
+        
     end
     
     return path_of_nodes
@@ -706,6 +753,8 @@ function pajarito.getPath(node_x,node_y,dest_x,dest_y)
         return {}
     end
     
+    local break_bucle = nil
+    
     while queue_of_nodes[1] do
         local node = queue_of_nodes[1]
         local index = pajarito.getIndexOfNode(node.x,node.y)
@@ -714,6 +763,7 @@ function pajarito.getPath(node_x,node_y,dest_x,dest_y)
         node.d = w
         table.remove(queue_of_nodes,1)
         lst_nodes_on_queue[index] = nil
+        
         
         if not pajarito.findABestFatherNode(node.father,node.x,node.y) then
             
@@ -733,6 +783,9 @@ function pajarito.getPath(node_x,node_y,dest_x,dest_y)
             pajarito.addNodeByPriority(node.x-1,node.y,w-0.1,index)
             pajarito.addNodeByPriority(node.x,node.y-1,w-0.1,index)
             pajarito.addNodeByPriority(node.x,node.y+1,w-0.1,index)
+        else
+            pajarito.markBorderNode(node.x,node.y,node)
+            --check if it is sourronded
         end
     end
     
