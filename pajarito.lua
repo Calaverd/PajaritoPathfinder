@@ -461,13 +461,13 @@ function pajarito.markBorderNode(x,y,node)
 end
 
 
---  Check if a node had a better possible father on one of their neighbors
+--  Check if a node had a better possible father among their already listed neighbors
   -- @class function
   -- @param father a integer index of the father of this node.  
   -- @param x an integer, the x pos of the node on the grid
   -- @param y an integer, the y pos of the node on the grid
-  -- @return boolean __true__ if find, __false__ otherwise
-  -- if find a neighbors the node is re-added to the queue
+  -- @return nf a pajaritoNode as new father if fund, otherwise nil
+  -- @return fd an integer as new father distance value, otherwise -1
   
   -- @usage
   -- -- Check if a node had a better possible father on one 
@@ -481,42 +481,34 @@ function pajarito.findABestFatherNode(father,node_x,node_y)
     if lst_marked_nodes[father] then
         fd = lst_marked_nodes[father].d
     else
-        return false
+        return nil
     end
     local tmp_node = nil
-    if lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y-1)] then
-        temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y-1)]
-        if temp_node.d < fd then
-            fd = temp_node.d
-            nf = temp_node
+    
+    if p_is_hexagonal then
+        local dir = -1
+        if math.fmod(node_y,2) == 0 then dir = 1 end
+        tmp_node = nil
+        if lst_marked_nodes[pajarito.getIndexOfNode(node_x+dir,node_y-1)] then
+            temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x+dir,node_y-1)]
+            if temp_node.d < fd then
+                fd = temp_node.d
+                nf = temp_node
+            end
         end
-    end
-    temp_node = nil
-    if lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y+1)] then
-        temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y+1)]
-        if temp_node.d < fd then
-            fd = temp_node.d
-            nf = temp_node
+        
+        tmp_node = nil
+        if lst_marked_nodes[pajarito.getIndexOfNode(node_x+dir,node_y+1)] then
+            temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x+dir,node_y+1)]
+            if temp_node.d < fd then
+                fd = temp_node.d
+                nf = temp_node
+            end
         end
+        
     end
-    temp_node = nil
-    if lst_marked_nodes[pajarito.getIndexOfNode(node_x-1,node_y)] then
-        temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x-1,node_y)]
-        if temp_node.d < fd then
-            fd = temp_node.d
-            nf = temp_node
-        end
-    end
-    temp_node = nil
-    if lst_marked_nodes[pajarito.getIndexOfNode(node_x+1,node_y)] then
-        temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x+1,node_y)]
-        if temp_node.d < fd then
-            fd = temp_node.d
-            nf = temp_node
-        end
-    end
-    --IF WE DO NOT FIND IT, CHEK FOR THE DIAGONALS TO!!!
-    if p_allow_diagonal and nf == nil then
+
+    if p_allow_diagonal then
         tmp_node = nil
         if lst_marked_nodes[pajarito.getIndexOfNode(node_x+1,node_y-1)] then
             temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x+1,node_y-1)]
@@ -550,7 +542,60 @@ function pajarito.findABestFatherNode(father,node_x,node_y)
             end
         end
     end
+    
+    
+    if lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y-1)] then
+        temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y-1)]
+        if temp_node.d < fd then
+            fd = temp_node.d
+            nf = temp_node
+        end
+    end
+    temp_node = nil
+    if lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y+1)] then
+        temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y+1)]
+        if temp_node.d < fd then
+            fd = temp_node.d
+            nf = temp_node
+        end
+    end
+    temp_node = nil
+    if lst_marked_nodes[pajarito.getIndexOfNode(node_x-1,node_y)] then
+        temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x-1,node_y)]
+        if temp_node.d < fd then
+            fd = temp_node.d
+            nf = temp_node
+        end
+    end
+    temp_node = nil
+    if lst_marked_nodes[pajarito.getIndexOfNode(node_x+1,node_y)] then
+        temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x+1,node_y)]
+        if temp_node.d < fd then
+            fd = temp_node.d
+            nf = temp_node
+        end
+    end
+    
+    
+    return nf,fd
+end
 
+--  Get and add a new father node to the requesting node.
+  -- @class function
+  -- @param father a integer index of the father of this node.  
+  -- @param x an integer, the x pos of the node on the grid
+  -- @param y an integer, the y pos of the node on the grid
+  -- @return boolean __true__ if find, __false__ otherwise
+  -- if is finded a fahter the node is re-added to the queue
+  
+  -- @usage
+  -- -- Check if a node had a better possible father on one 
+  -- -- of their neighbors. We undestand a 'better possible father'
+  -- -- as a node with a lower weight cost
+  --  pajarito.getNewFatherNode(father,node_x,node_y)
+  
+function pajarito.getNewFatherNode(father,node_x,node_y)
+    local nf,fd = pajarito.findABestFatherNode(father,node_x,node_y)
     if nf then
         pajarito.addNodeByPriority(node_x,node_y,fd,pajarito.getIndexOfNode(nf.x,nf.y))
         return true
@@ -592,30 +637,25 @@ function pajarito.getNodesOnRange(node_x,node_y,range)
         table.remove(queue_of_nodes,1)
         lst_nodes_on_queue[index] = nil
         
-        if not pajarito.findABestFatherNode(node.father,node.x,node.y) then
+        if not pajarito.getNewFatherNode(node.father,node.x,node.y) then
             if w <= range then
                 pajarito.markNode(node.x,node.y,node)
                 
-                if not p_is_hexagonal then
-                    if p_allow_diagonal then
-                        pajarito.addNodeByPriority(node.x+1,node.y+1,w,index)
-                        pajarito.addNodeByPriority(node.x-1,node.y-1,w,index)
-                        pajarito.addNodeByPriority(node.x+1,node.y-1,w,index)
-                        pajarito.addNodeByPriority(node.x-1,node.y+1,w,index)
-                    end
-
-                    pajarito.addNodeByPriority(node.x+1,node.y,w,index)
-                    pajarito.addNodeByPriority(node.x-1,node.y,w,index)
-                    pajarito.addNodeByPriority(node.x,node.y-1,w,index)
-                    pajarito.addNodeByPriority(node.x,node.y+1,w,index)
-                    
-                else
+                pajarito.addNodeByPriority(node.x+1,node.y,w,index)
+                pajarito.addNodeByPriority(node.x-1,node.y,w,index)
+                pajarito.addNodeByPriority(node.x,node.y-1,w,index)
+                pajarito.addNodeByPriority(node.x,node.y+1,w,index)
+                
+                if p_allow_diagonal then
+                    pajarito.addNodeByPriority(node.x+1,node.y+1,w,index)
+                    pajarito.addNodeByPriority(node.x-1,node.y-1,w,index)
+                    pajarito.addNodeByPriority(node.x+1,node.y-1,w,index)
+                    pajarito.addNodeByPriority(node.x-1,node.y+1,w,index)
+                end
+                
+                if p_is_hexagonal then
                     local dir = -1
                     if math.fmod(node.y,2) == 0 then dir = 1 end
-                    pajarito.addNodeByPriority(node.x+1,node.y,w,index)
-                    pajarito.addNodeByPriority(node.x-1,node.y,w,index)
-                    pajarito.addNodeByPriority(node.x,node.y-1,w,index)
-                    pajarito.addNodeByPriority(node.x,node.y+1,w,index)
                     pajarito.addNodeByPriority(node.x+dir,node.y-1,w,index)
                     pajarito.addNodeByPriority(node.x+dir,node.y+1,w,index)
                 end
@@ -662,46 +702,12 @@ function pajarito.getPathInsideRange(x,y)
             local father = node.father
             local node_x = node.x
             local node_y = node.y
-            local fd = -1
             index = father
-            if lst_marked_nodes[father] then
-                fd = lst_marked_nodes[father].d
-            end
-            --some times is posible than the fater is not the best candidate...
-            local tmp_node = nil
-            if lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y-1)] then
-                temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y-1)]
-                if temp_node.d < fd then
-                    fd = temp_node.d
-                    index = pajarito.getIndexOfNode(node_x,node_y-1)
-                end
-            end
-            temp_node = nil
-            if lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y+1)] then
-                temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x,node_y+1)]
-                if temp_node.d < fd then
-                    fd = temp_node.d
-                    index = pajarito.getIndexOfNode(node_x,node_y+1)
-                end
-            end
-            temp_node = nil
-            if lst_marked_nodes[pajarito.getIndexOfNode(node_x-1,node_y)] then
-                temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x-1,node_y)]
-                if temp_node.d < fd then
-                    fd = temp_node.d
-                    index = pajarito.getIndexOfNode(node_x-1,node_y)
-                end
-            end
-            temp_node = nil
-            if lst_marked_nodes[pajarito.getIndexOfNode(node_x+1,node_y)] then
-                temp_node = lst_marked_nodes[pajarito.getIndexOfNode(node_x+1,node_y)]
-                if temp_node.d < fd then
-                    fd = temp_node.d
-                    index = pajarito.getIndexOfNode(node_x+1,node_y)
-                end
+            local nf,fd = pajarito.findABestFatherNode(father,node_x,node_y)
+            if nf then
+                index = pajarito.getIndexOfNode(nf.x,nf.y) 
             end
         end
-        
     end
     
     return path_of_nodes
@@ -765,12 +771,17 @@ function pajarito.getPath(node_x,node_y,dest_x,dest_y)
         lst_nodes_on_queue[index] = nil
         
         
-        if not pajarito.findABestFatherNode(node.father,node.x,node.y) then
+        if not pajarito.getNewFatherNode(node.father,node.x,node.y) then
             
             pajarito.markNode(node.x,node.y,node)
             if dest_index == index then
                 break
             end
+
+            pajarito.addNodeByPriority(node.x+1,node.y,w,index)
+            pajarito.addNodeByPriority(node.x-1,node.y,w,index)
+            pajarito.addNodeByPriority(node.x,node.y-1,w,index)
+            pajarito.addNodeByPriority(node.x,node.y+1,w,index)
             
             if p_allow_diagonal then
                 pajarito.addNodeByPriority(node.x+1,node.y+1,w,index)
@@ -778,14 +789,38 @@ function pajarito.getPath(node_x,node_y,dest_x,dest_y)
                 pajarito.addNodeByPriority(node.x+1,node.y-1,w,index)
                 pajarito.addNodeByPriority(node.x-1,node.y+1,w,index)
             end
-
-            pajarito.addNodeByPriority(node.x+1,node.y,w-0.1,index)
-            pajarito.addNodeByPriority(node.x-1,node.y,w-0.1,index)
-            pajarito.addNodeByPriority(node.x,node.y-1,w-0.1,index)
-            pajarito.addNodeByPriority(node.x,node.y+1,w-0.1,index)
+            
+            if p_is_hexagonal then
+                local dir = -1
+                if math.fmod(node.y,2) == 0 then dir = 1 end
+                pajarito.addNodeByPriority(node.x+dir,node.y-1,w,index)
+                pajarito.addNodeByPriority(node.x+dir,node.y+1,w,index)
+            end
+            
         else
-            pajarito.markBorderNode(node.x,node.y,node)
+            
             --check if it is sourronded
+        end
+    end
+    
+    --clear the queue
+    --sometimes, a better path is
+    --still on the to be processed
+    --nodes of the queue
+    while queue_of_nodes[1] do
+        local node = queue_of_nodes[1]
+        local index = pajarito.getIndexOfNode(node.x,node.y)
+        local w = node.d
+        w = w+math.max(pajarito.getGridWeight(node.x,node.y),1)*pajarito.heuristic(node_dest,node)
+        node.d = w
+        table.remove(queue_of_nodes,1)
+        lst_nodes_on_queue[index] = nil
+        
+        
+        if not pajarito.getNewFatherNode(node.father,node.x,node.y) then
+            pajarito.markNode(node.x,node.y,node)
+        else
+            --pajarito.markBorderNode(node.x,node.y,node)
         end
     end
     
