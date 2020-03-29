@@ -665,6 +665,12 @@ function pajarito.getNodesOnRange(node_x,node_y,range)
             end
         end
     end
+    
+    for k,v in pairs(lst_border_nodes) do
+        if lst_marked_nodes[k] then
+            lst_border_nodes[k] = nil
+        end
+    end
 end
 
 
