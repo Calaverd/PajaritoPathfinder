@@ -83,6 +83,9 @@ local p_allow_diagonal = false
 -- A value to check if we should treat the grid as a hexagonal one
 local p_is_hexagonal = false
 
+-- Define the tipo of the grid to use. 
+-- we accept the grid
+local grid_is_type = '2D'
 
 --  Inits a new `pajarito class`
   -- @class function
@@ -120,6 +123,8 @@ function pajarito.init(grid,w,h,diagonal,hexagonal)
     end
     map_height = h
     map_width = w
+    if type(grid[1]) == 'table' then grid_is_type = '2D' end
+    if type(grid[1]) == 'number' then grid_is_type = '1D' end
     reference_grid = grid
 end
 
@@ -221,6 +226,12 @@ function pajarito.getIndexOfNode(node_x,node_y)
     return ( ( node_y * map_width ) + node_x )
 end
 
+local function getIndexOfGrid1D(node_x,node_y)
+    node_y = math.min(map_height,math.max(node_y,1))-1
+    node_x = math.min(map_width,math.max(node_x,1))-1
+    return ( ((node_y * map_width) + node_x) + 1)
+end
+
 --  Get a node x and y position from their index value
   -- @class function
   -- @param index an integer corresponding with a position
@@ -249,13 +260,63 @@ end
   --  is_on_grid = pajarito.isNodeOnGrid(20,50)
   
 function pajarito.isNodeOnGrid(x,y)
-    if reference_grid[y] then
-        if reference_grid[y][x] then
+    if grid_is_type == '2D' then
+        if reference_grid[y] then
+            if reference_grid[y][x] then
+                return true
+            end
+        end
+        return false
+    end
+    if grid_is_type == '1D' then
+        local id = getIndexOfGrid1D(x,y)
+        if reference_grid[id] then
             return true
         end
+        return false
     end
     return false
 end
+
+--  Get the weight of a point on the grid
+  -- @class function
+  -- @param x an integer, the x pos of the point on the grid
+  -- @param y an integer, the y pos of the point on the grid  
+  -- @return w integer equal to the weight of the point be this
+     --  the value of the tile if not a weight table was set
+     --  defaults to 1
+  
+  -- @usage
+  -- -- Use to get the weight of a point on the grid
+  --  weight_on_point = getGridWeight(40,12)
+
+local function getGridWeight(x,y)
+    local w = nil
+    if grid_is_type == '2D' then
+        if reference_grid[y] then
+            if reference_grid[y][x] then
+                w = reference_grid[y][x]
+                if lst_weight_ref then
+                    return lst_weight_ref[w]
+                end
+            end
+        end
+    end
+    if grid_is_type == '1D' then
+        local id = getIndexOfGrid1D(x,y)
+        if reference_grid[id] then
+            w = reference_grid[id]
+            if lst_weight_ref then
+                return lst_weight_ref[w]
+            end
+        end
+    end
+    if w <= 0 then
+        return 0
+    end
+    return 1 --the default weight
+end
+
 
 --  Get if a given point x,y is a obstacle
   -- @class function
@@ -269,33 +330,7 @@ end
   --  is_obstacle = pajarito.isNodeObstacle(20,10)
 
 function pajarito.isNodeObstacle(x,y)
-    return ( pajarito.getGridWeight(x,y) <= 0)
-end
-
-
---  Get the weight of a point on the grid
-  -- @class function
-  -- @param x an integer, the x pos of the point on the grid
-  -- @param y an integer, the y pos of the point on the grid  
-  -- @return w integer equal to the weight of the point be this
-     --  the value of the tile if not a weight table was set
-     --  defaults to 1
-  
-  -- @usage
-  -- -- Use to get the weight of a point on the grid
-  --  weight_on_point = pajarito.getGridWeight(40,12)
-
-function pajarito.getGridWeight(x,y)
-    if reference_grid[y] then
-        if reference_grid[y][x] then
-            local w = reference_grid[y][x]
-            if lst_weight_ref then
-                return lst_weight_ref[w]
-            end
-            return w
-        end
-    end
-    return 1 --the default weight
+    return ( getGridWeight(x,y) <= 0)
 end
 
 --  Returns if the point is on the queue
@@ -320,9 +355,9 @@ end
   
   -- @usage
   -- -- Use know if the point is marked as visited
-  --  is_visited = pajarito.isNodeMarked(x,y)
+  --  is_visited = isNodeMarked(x,y)
   
-function pajarito.isNodeMarked(x,y)
+local function isNodeMarked(x,y)
     return (lst_marked_nodes[pajarito.getIndexOfNode(x,y)] ~= nil)
 end
 
@@ -334,9 +369,9 @@ end
   
   -- @usage
   -- -- Use know if the point is on the queue 
-  --  is_on_border = pajarito.isNodeBorder(x,y)
+  --  is_on_border = isNodeBorder(x,y)
   
-function pajarito.isNodeBorder(x,y)
+local function isNodeBorder(x,y)
     return (lst_border_nodes[pajarito.getIndexOfNode(x,y)] ~= nil)
 end
 
@@ -379,7 +414,7 @@ function pajarito.isNodeCompilant(node_x,node_y)
             --print('is not a obstacle!!!')
             if not pajarito.isNodeOnQueue(node_x,node_y) then
                 --print('is not on the queue!!!')
-                if not pajarito.isNodeMarked(node_x,node_y) then
+                if not isNodeMarked(node_x,node_y) then
                     --add aniway
                     return 4
                 end
@@ -425,7 +460,7 @@ function pajarito.addNodeByPriority(node_x,node_y,d,father)
     elseif val == 1 then
         pajarito.markBorderNode(node_x,node_y,pajaritoNode(node_x,node_y,-1,father))
         --local node = pajarito.getIndexOfNode(node_x,node_y)
-        --print('Error -> ',val, pajarito.getGridWeight(node_x,node_y))
+        --print('Error -> ',val, getGridWeight(node_x,node_y))
     end
 end
 
@@ -586,7 +621,7 @@ end
   -- @param x an integer, the x pos of the node on the grid
   -- @param y an integer, the y pos of the node on the grid
   -- @return boolean __true__ if find, __false__ otherwise
-  -- if is finded a fahter the node is re-added to the queue
+  -- if is found a fahter the node is re-added to the queue
   
   -- @usage
   -- -- Check if a node had a better possible father on one 
@@ -615,11 +650,11 @@ end
   -- -- Generates a list containing all possible nodes on a
   -- -- range of movement taking into account the weight
   -- -- this function for itself do not generate a path.
-  -- -- if you need a path, use pajarito.getPathInsideRange
+  -- -- if you need a path, use getAndBuildPathInRange
   -- -- afterwards 
-  --  pajarito.getNodesOnRange(node_x,node_y,range)
+  --  getNodesOnRange(node_x,node_y,range)
 
-function pajarito.getNodesOnRange(node_x,node_y,range)
+local function getNodesOnRange(node_x,node_y,range)
     --we add the first node to the queue, we trust the user
     if node_x == nil or node_y == nil then return end --NOPE NOPE NOPE
     --print('start:',node_x,node_y)
@@ -632,7 +667,7 @@ function pajarito.getNodesOnRange(node_x,node_y,range)
     while queue_of_nodes[1] do
         local node = queue_of_nodes[1]
         local index = pajarito.getIndexOfNode(node.x,node.y)
-        local w = node.d+math.max(pajarito.getGridWeight(node.x,node.y),1)
+        local w = node.d+math.max(getGridWeight(node.x,node.y),1)
         node.d = w
         table.remove(queue_of_nodes,1)
         lst_nodes_on_queue[index] = nil
@@ -673,6 +708,51 @@ function pajarito.getNodesOnRange(node_x,node_y,range)
     end
 end
 
+--  Generate a path of nodes inside a precalculated range
+  -- @class function  
+  -- @param x an integer, the x pos of the destination point
+  -- @param y an integer, the y pos of the destination point
+  -- @return boolean true if exist the path, false if failure.
+  
+  -- @usage
+  -- -- Generates a path of nodes between the starting point of 
+  -- -- the range and the destination point.
+  -- -- Use this function afterwards 
+  -- -- of getNodesOnRange
+  
+  --  buildPathInRange(x,y)
+local function buildPathInRange(x,y)
+    path_of_nodes = {}
+    lst_nodes_on_path = {}
+    
+    local index = pajarito.getIndexOfNode(x,y)
+    
+    if not lst_marked_nodes[index] then
+        --print('Point is not in range',2)
+        return false
+    end
+    --exits the point on the marked ones...
+    while lst_marked_nodes[index] or index ~= nil do
+        local node = lst_marked_nodes[index]
+        lst_nodes_on_path[index] = true
+        --print(node.x,node.y) 
+        index = nil
+        if node then
+            table.insert(path_of_nodes,1,node)
+            local father = node.father
+            local node_x = node.x
+            local node_y = node.y
+            index = father
+            local nf,fd = pajarito.findABestFatherNode(father,node_x,node_y)
+            if nf then
+                index = pajarito.getIndexOfNode(nf.x,nf.y) 
+            end
+        end
+    end
+    
+    return (#path_of_nodes > 0)
+end
+
 
 --  Generate a path of nodes inside a precalculated range
   -- @class function  
@@ -684,10 +764,10 @@ end
   -- -- Generates a path of nodes between the starting point of 
   -- -- the range and the destination point.
   -- -- Use this function afterwards 
-  -- -- of pajarito.getNodesOnRange
+  -- -- of getNodesOnRange
   
-  --  pajarito.getPathInsideRange(x,y)
-function pajarito.getPathInsideRange(x,y)
+  --  getAndBuildPathInRange(x,y)
+local function getAndBuildPathInRange(x,y)
     path_of_nodes = {}
     lst_nodes_on_path = {}
     
@@ -771,7 +851,7 @@ function pajarito.getPath(node_x,node_y,dest_x,dest_y)
         local node = queue_of_nodes[1]
         local index = pajarito.getIndexOfNode(node.x,node.y)
         local w = node.d
-        w = w+math.max(pajarito.getGridWeight(node.x,node.y),1)*pajarito.heuristic(node_dest,node)
+        w = w+math.max(getGridWeight(node.x,node.y),1)*pajarito.heuristic(node_dest,node)
         node.d = w
         table.remove(queue_of_nodes,1)
         lst_nodes_on_queue[index] = nil
@@ -817,7 +897,7 @@ function pajarito.getPath(node_x,node_y,dest_x,dest_y)
         local node = queue_of_nodes[1]
         local index = pajarito.getIndexOfNode(node.x,node.y)
         local w = node.d
-        w = w+math.max(pajarito.getGridWeight(node.x,node.y),1)*pajarito.heuristic(node_dest,node)
+        w = w+math.max(getGridWeight(node.x,node.y),1)*pajarito.heuristic(node_dest,node)
         node.d = w
         table.remove(queue_of_nodes,1)
         lst_nodes_on_queue[index] = nil
@@ -831,7 +911,7 @@ function pajarito.getPath(node_x,node_y,dest_x,dest_y)
     end
     
     lst_border_nodes = lst_nodes_on_queue
-    return pajarito.getPathInsideRange(dest_x,dest_y)
+    return getAndBuildPathInRange(dest_x,dest_y)
 end
 
 
@@ -867,10 +947,10 @@ end
   
   -- @usage
   -- -- Clear the info generated for the functions
-  -- -- pajarito.getNodesOnRange, pajarito.getPathInsideRange,
+  -- -- getNodesOnRange, getAndBuildPathInRange,
   -- -- and pajarito.getPath
   -- -- call this function any time you change the starting point of 
-  -- -- pajarito.getNodesOnRange, or before calling
+  -- -- getNodesOnRange, or before calling
   -- -- pajarito.getPath with new parameters. 
   --  pajarito.clearNodeInfo()
 function pajarito.clearNodeInfo()
@@ -882,6 +962,9 @@ function pajarito.clearNodeInfo()
     lst_border_nodes = {}
 end
 
+
+--this functions are just a wrap for more user friendly api
+
 --  Get if a given point x,y exist on the calculated path
   -- @class function
   -- @param x an integer, the x pos of the point on the grid
@@ -891,9 +974,37 @@ end
   -- @usage
   -- -- Use to get if a point x,y exist on the calculated path
   --  is_on_path = pajarito.isNodeOnGrid(20,50)
-function pajarito.isNodeOnPath(x,y)
+function pajarito.isPointInFoundPath(x,y)
     return (lst_nodes_on_path[pajarito.getIndexOfNode(x,y)] ~= nil)
 end
 
+
+function pajarito.buildRange(node_x,node_y,range)
+    pajarito.clearNodeInfo()
+    getNodesOnRange(node_x,node_y,range)
+end
+
+function pajarito.buildInRangePathTo(x,y)
+    return buildPathInRange(x,y)
+end
+
+function pajarito.getFoundPath()
+    return path_of_nodes
+end
+
+function pajarito.isPointInRange(x,y)
+    return isNodeMarked(x,y)
+end
+
+function pajarito.isPointInRangeBorder(x,y)
+    return isNodeBorder(x,y)
+end
+
+function pajarito.getWeightAt(x,y)
+    if pajarito.isNodeOnGrid(x,y) then
+        return getGridWeight(x,y)
+    end
+    return 0
+end
 
 return pajarito
