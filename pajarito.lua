@@ -826,9 +826,10 @@ end
   -- @usage
   -- -- Generates a path of nodes between the starting point and the
   -- -- destination point.  
-  --  path = pajarito.getPath(node_x,node_y,dest_x,dest_y)
+  --  path = pajarito.pathfinder(node_x,node_y,dest_x,dest_y)
   
-function pajarito.getPath(node_x,node_y,dest_x,dest_y)
+function pajarito.pathfinder(node_x,node_y,dest_x,dest_y)
+    pajarito.clearNodeInfo()
     --we add the first node to the queue, we trust the user
     if node_x == nil or node_y == nil then return end --NOPE NOPE NOPE
     if dest_x == nil or dest_y == nil then return end --NOPE NOPE NOPE
@@ -948,10 +949,10 @@ end
   -- @usage
   -- -- Clear the info generated for the functions
   -- -- getNodesOnRange, getAndBuildPathInRange,
-  -- -- and pajarito.getPath
+  -- -- and pajarito.pathfinder
   -- -- call this function any time you change the starting point of 
   -- -- getNodesOnRange, or before calling
-  -- -- pajarito.getPath with new parameters. 
+  -- -- pajarito.pathfinder with new parameters. 
   --  pajarito.clearNodeInfo()
 function pajarito.clearNodeInfo()
     path_of_nodes = {}

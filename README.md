@@ -38,7 +38,7 @@ tile_map_height = #tile_map
 --note, values equal or less than 0, are considered impassable terrain
 local table_of_weights = {}
 table_of_weights[1] = 1  --grass    tile 1 -> 1
-table_of_weights[2] = 3  --woods    tile 2 -> 2
+table_of_weights[2] = 3  --woods    tile 2 -> 3
 table_of_weights[3] = 0  --mountain tile 3 -> 0  
 
 --set the map
@@ -240,6 +240,27 @@ pajarito.getWeightAt(x,y)
 ```
 
 Compare the grid value on the grid at that position against their given value on the weighted table, and returns that value. If the point is outside the grid returns __0__, if there is not defined a weight for the grid value on the table, then all values _greater than 0_ are returned with a weight of __1__
+
+### Node structure
+
+Pajarito is build around a __node__ type with the following attributes:
+* `node.x` The _x_ position of the node on the grid.
+* `node.y` The _y_ position of the node on the grid.
+* `node.d` The deep or distance of this node in relative to the start point.
+* `node.father` A hash table id of the preceding node.
+
+### Using Pajarito as a simple pathfinder. 
+
+```lua
+path = pajarito.pathfinder(start_x, start_y, goal_x, goal_y)
+```
+Pajarito offers a simple implementation of the A* pathfinder algorithm. It requires the same setup as `pajarito.buildPathInRange`, in other words, to be set the map and a table of weights. After that, can be called to find a path from the position start_x,start_y to the goal_x,goal_y.
+
+Returns a __list of _nodes__, where the first is the starting point, and the last is the goal point. Otherwise, returns a __empty list__.
+
+Because of being a more straightforward function build on top, `pajarito.isPointInRangeBorder(x,y)` do not generate borders, `node.d` shows not the distance, but _the heuristic value_ of the distance, and `pajarito.isPointInRange(x,y)` shows all the explored points in the grid before finding the goal.
+
+***Avoid use it at the same time that  `pajarito.buildPathInRange` or vise versa*** both functions clear the data of the grid to build their paths. Calling one will overwrite the data of the other. 
 
 
 ## License
