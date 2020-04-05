@@ -1008,4 +1008,8 @@ function pajarito.getWeightAt(x,y)
     return 0
 end
 
+function pajarito.getInRangeNodes()
+    return pajarito.getMarkedNodes()
+end
+
 return pajarito

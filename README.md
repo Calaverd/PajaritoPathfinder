@@ -256,7 +256,7 @@ path = pajarito.pathfinder(start_x, start_y, goal_x, goal_y)
 ```
 Pajarito offers a simple implementation of the A* pathfinder algorithm. It requires the same setup as `pajarito.buildPathInRange`, in other words, to be set the map and a table of weights. After that, can be called to find a path from the position start_x,start_y to the goal_x,goal_y.
 
-Returns a __list of _nodes__, where the first is the starting point, and the last is the goal point. Otherwise, returns a __empty list__.
+Returns a __list of *nodes*__, where the first is the starting point, and the last is the goal point. Otherwise, returns a __empty list__.
 
 Because of being a more straightforward function build on top, `pajarito.isPointInRangeBorder(x,y)` do not generate borders, `node.d` shows not the distance, but _the heuristic value_ of the distance, and `pajarito.isPointInRange(x,y)` shows all the explored points in the grid before finding the goal.
 
