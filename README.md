@@ -31,6 +31,10 @@ Pajarito is *not framework related*,  and can be used on any Lua project. Althou
     
 ## Example
 
+Consider the following map:
+
+![map](/img/map.png)
+
 
 ```lua
 local pajarito = require 'pajarito'
