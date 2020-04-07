@@ -13,9 +13,21 @@ Pajarito is *not framework related*,  and can be used on any Lua project. Althou
 
 - [Example](#Example)
 - [Basic API and Usage](#basic-api-and-usage)
+   * [Requiring the library](#requiring-the-library)
+   * [Initializing a new map](#initializing-a-new-map)
+   * [Set a cost-weight table](#set-a-cost-weight-table)
+   * [Build a movement range](#build-a-movement-range)
+   * [The path inside a movement range](#the-paht-inside-a-movement-range)
+   * [Using Diagonal](#using-diagonal)
+   * [Using Pajarito as a simple pathfinder](#using-pajarito-as-a-simple-pathfinder)
+   * [Requesting point info](#requesting-point-info)
+       + [Node structure](#requesting-point-info)
+       + [Is Point in the found path](#is-point-in-the-found-path)
+       + [Is point inside the range](#is-point-inside-the-range)
+       + [Is point in the border of the range](#is-point-in-the-border-of-the-range)
+       + [Get the weight of a point on the grid](#get-the-weight-of-a-point-on-the-grid)
 - [License](#License)
-<!--  * [Sub-heading](#sub-heading)
-    + [Sub-sub-heading](#sub-sub-heading)-->
+<!--      + [Sub-sub-heading](#sub-sub-heading)-->
     
 ## Example
 
@@ -38,7 +50,7 @@ tile_map_height = #tile_map
 --note, values equal or less than 0, are considered impassable terrain
 local table_of_weights = {}
 table_of_weights[1] = 1  --grass    tile 1 -> 1
-table_of_weights[2] = 3  --woods    tile 2 -> 3
+table_of_weights[2] = 3  --dessert  tile 2 -> 3
 table_of_weights[3] = 0  --mountain tile 3 -> 0  
 
 --set the map
@@ -49,7 +61,7 @@ pajarito.setWeigthTable(table_of_weights)
 
 --[[
 build a set of nodes that comprend the set of all the posible
-movement range of  starting from the point (x:4,y:14)
+movement range of  starting from the point (x:4,y:4)
 ]]
 pajarito.buildRange(4,4,15) 
 
@@ -100,7 +112,6 @@ end
 
 The above code generates the following output
 
-
 ```
  0 ? + ? + + +
  0 ? + + + + +
@@ -118,9 +129,14 @@ The above code generates the following output
 (x:  1, y:  1) | Seep  7 | Movement: 11 | Grid value Cost:  1 
 
 ```
+
+On a graphical form:
+
+![Main graphical](/img/main_graphical.png)
+
 ## Basic API and Usage
 
-### Requiring the library.
+### Requiring the library
 
 ```lua
 local pajarito = require 'pajarito'
@@ -128,13 +144,13 @@ local pajarito = require 'pajarito'
 
 That's all. Let's now explain the basic methods and their function on detail, so you can get the most of Pajarito as well.
 
-### Initializing a new map.
+### Initializing a new map
 
 ```lua
-pajarito.init(map, map_width, map_height)
+pajarito.init(map, map_width, map_height, diagonal)
 ```
 
-To start, Pajarito needs to get a map to work. The map can be a table of one or two dimensions, with consecutive indices/keys starting at 1. Map width is the number of columns, and Map height the number of rows of the given map.
+To start, Pajarito needs to get a map to work. The map can be a table of one or two dimensions, with consecutive indices/keys starting at 1. Map width is the number of columns, and Map height the number of rows of the given map. Diagonal is a _boolean_ flag to set to allow the movement on diagonal tiles, by default is __false__, more details in [diagonal bellow](#using-diagonal).
 
 So then
 
@@ -166,7 +182,8 @@ map = {
 
 Are both valid map inputs.
 
-### Set a cost/weight table.
+
+### Set a cost-weight table
 
 ```lua
 pajarito.setWeigthTable(table_of_weights)
@@ -182,7 +199,7 @@ All weights less or equal than 0 are treated as walls or impassable terrain.
 
 Is necessary set a weight table, at least only with the weights bigger than 1 of each corresponding grid value. If is not defined a weight for a grid value on the table, ***by default, all grid values _greater than 0_ are treated with a weight of __1__***. You can call this function swap between different weight tables on the same map before building a new movement range. 
 
-### Build a movement range.
+### Build a movement range
 
 ```lua
 pajarito.buildRange(start_x,start_y,movement_range_value)
@@ -206,9 +223,45 @@ path = pajarito.getFoundPath()
 
 If the path exist, returns a __list of _nodes___, where the first is the starting point, and the last is the goal point. Otherwise, returns a __empty list__.
 
-### Requesting point info.
+### Using diagonal
+
+![Diagonal example](/img/diagonal.png)
+
+Diagonal is a flag that indicates to pajarito to use also the diagonal nodes of grid. It can be set as a optional parameter of `pajarito.init`, or using
+
+```lua
+pajarito.useDiagonal(diagonal_flag)
+```
+
+Where `diagonal_flag` is a _boolean_ type.
+
+Diagonal can be set any time, and affects the following calls to `pajarito.buildRange` and  `pajarito.pathfinder`.
+
+### Using Pajarito as a simple pathfinder
+
+```lua
+path = pajarito.pathfinder(start_x, start_y, goal_x, goal_y)
+```
+Pajarito offers a simple implementation of the A* pathfinder algorithm. It requires the same setup as `pajarito.buildPathInRange`, in other words, to be set the map and a table of weights. After that, can be called to find a path from the position start_x,start_y to the goal_x,goal_y.
+
+Returns a __list of *nodes*__, where the first is the starting point, and the last is the goal point. Otherwise, returns a __empty list__.
+
+Because of being a more straightforward function build on top, `pajarito.isPointInRangeBorder(x,y)` do not generate borders, `node.d` shows not the distance, but _the heuristic value_ of the distance, and `pajarito.isPointInRange(x,y)` shows all the explored points in the grid before finding the goal.
+
+***Avoid use it at the same time that  `pajarito.buildPathInRange` or vise versa*** both functions clear the data of the grid to build their paths. Calling one will overwrite the data of the other. 
+
+
+### Requesting point info
 
 Because is common to want to know the status of a point often (is in range, is path, is border range) to draw to screen, Pajarito stores the nodes on a hash table to quick access avoiding comparison of the requested point against every node on the grid. This info do not change until `pajarito.buildRange()` is called on a new start position.
+
+#### Node structure
+
+Pajarito is build around a __node__ type with the following attributes:
+* `node.x` The _x_ position of the node on the grid.
+* `node.y` The _y_ position of the node on the grid.
+* `node.d` The deep or distance of this node in relative to the start point.
+* `node.father` A hash table id of the preceding node.
 
 #### Is point inside the range 
 
@@ -225,7 +278,7 @@ pajarito.isPointInFoundPath(x,y)
 
 Request if a point is inside of the found path, if is the case, then returns __true__, otherwise, __false__. If not path exist always returns __false__.
 
-#### Is point in the border of the range.
+#### Is point in the border of the range
 
 ```lua
 pajarito.isPointInRangeBorder(x,y) 
@@ -233,34 +286,13 @@ pajarito.isPointInRangeBorder(x,y)
 
 Request if a point is part of the border of the range, understanding the border as the set of _nodes_ with at least a neighbor _node_ that is inside the range. If this is the case, then returns __true__, otherwise, __false__.
 
-#### Get the cost/weight of a point on the grid.
+#### Get the weight of a point on the grid
 
 ```lua
 pajarito.getWeightAt(x,y)
 ```
 
 Compare the grid value on the grid at that position against their given value on the weighted table, and returns that value. If the point is outside the grid returns __0__, if there is not defined a weight for the grid value on the table, then all values _greater than 0_ are returned with a weight of __1__
-
-### Node structure
-
-Pajarito is build around a __node__ type with the following attributes:
-* `node.x` The _x_ position of the node on the grid.
-* `node.y` The _y_ position of the node on the grid.
-* `node.d` The deep or distance of this node in relative to the start point.
-* `node.father` A hash table id of the preceding node.
-
-### Using Pajarito as a simple pathfinder. 
-
-```lua
-path = pajarito.pathfinder(start_x, start_y, goal_x, goal_y)
-```
-Pajarito offers a simple implementation of the A* pathfinder algorithm. It requires the same setup as `pajarito.buildPathInRange`, in other words, to be set the map and a table of weights. After that, can be called to find a path from the position start_x,start_y to the goal_x,goal_y.
-
-Returns a __list of *nodes*__, where the first is the starting point, and the last is the goal point. Otherwise, returns a __empty list__.
-
-Because of being a more straightforward function build on top, `pajarito.isPointInRangeBorder(x,y)` do not generate borders, `node.d` shows not the distance, but _the heuristic value_ of the distance, and `pajarito.isPointInRange(x,y)` shows all the explored points in the grid before finding the goal.
-
-***Avoid use it at the same time that  `pajarito.buildPathInRange` or vise versa*** both functions clear the data of the grid to build their paths. Calling one will overwrite the data of the other. 
 
 
 ## License
