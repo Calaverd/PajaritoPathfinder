@@ -6,6 +6,126 @@
   -- to call 
   -- local pajarito = require("pajarito")
 
+
+-- A simple Heap implementation.
+-- Is build to be data agnostic, so it can work comparing
+-- arbitrary data types.
+-- Is used for the priority queue
+function PajaritoHeap()
+    local self = {}
+    
+    local last = 0 --the id of the last inserted item
+    local container = {}
+    
+    function self.compare(a,b)
+        return a <= b
+    end
+    
+    function self.clear()
+        container = {}
+        last = 0
+    end
+    
+    local function getParentOf(id)
+        if math.fmod(id,2) == 0 then return id/2 end
+        return (id-1)/2 
+    end
+    
+    function self.push(data)
+        --is first element.
+        if last <= 1 then
+            container[1] = data
+            last = 2
+            return nil
+        end
+        
+        local heap_property = false
+        local current = last
+        local parent = 0
+        container[current] = data
+        
+        while not heap_property do
+            parent = getParentOf(current)
+            if self.compare( container[current], container[parent] ) then
+                --swap current and parent
+                container[current] = container[parent]
+                container[parent] = data
+                current = parent
+            else
+                heap_property = true
+            end
+            if current <= 1 then
+                heap_property = true
+            end        
+        end
+        last = last+1
+        
+    end
+    
+    function self.pop()
+        --sawp first and last value
+        local top = container[1]
+        container[1] = container[last-1]
+        container[last-1] = nil
+        
+        local current = 1
+        local heap_property = false
+        --print('*** START ***')
+        while not heap_property do
+            local left = 2*current
+            local right = 2*current + 1
+            local choosed = current
+            -- Exist the right node?
+            if container[right] then
+                if self.compare(container[left], container[right]) then
+                    choosed = left
+                else
+                    choosed = right
+                end
+                
+                if self.compare(container[choosed],container[current]) then
+                    --swap the value
+                    local temp = container[choosed]
+                    container[choosed] = container[current]
+                    container[current] = temp
+                    current = choosed   
+                else
+                    heap_property = true
+                end
+            -- Exist the left node?
+            elseif container[left] then
+                if self.compare(container[left],container[current]) then
+                    --swap the value
+                    choosed = left
+                    local temp = container[choosed]
+                    container[choosed] = container[current]
+                    container[current] = temp
+                    current = choosed   
+                else
+                    heap_property = true
+                end
+            else
+                heap_property = true
+            end
+        end
+
+        last = math.max(last-1,0)
+        
+        return top
+    end
+    
+    function self.peek()
+        return container[1]
+    end
+    
+    function self.getSize()
+        return last
+    end
+    
+    return self
+end
+
+
 --- The `PajaritoNode` node class.<br/>
 --  Inits a new `pajarito node`
   -- @class function
@@ -51,7 +171,10 @@ local lst_weight_ref = nil
 local lst_marked_nodes = {}
 
 -- A queue of the nodes to be visited
-local queue_of_nodes = {}
+local queue_of_nodes = PajaritoHeap()
+queue_of_nodes.compare = function(a, b)
+    return a.d <= b.d  
+end
 
 -- A list of the nodes to be visited
 -- this one is just to not search on the queue on a value by value
@@ -445,18 +568,9 @@ end
 function pajarito.addNodeByPriority(node_x,node_y,d,father)
     local val = pajarito.isNodeCompilant(node_x,node_y)
     if val == 4 then
-        
-        local i = 1
-        while queue_of_nodes[i] do
-            local n = queue_of_nodes[i]
-            if n.d >= d then
-                break
-            end
-            i=i+1
-        end
-        
-        table.insert(queue_of_nodes,i,pajaritoNode(node_x,node_y,d,father))
+        queue_of_nodes.push(pajaritoNode(node_x,node_y,d,father))
         lst_nodes_on_queue[pajarito.getIndexOfNode(node_x,node_y)] = d
+    
     elseif val == 1 then
         pajarito.markBorderNode(node_x,node_y,pajaritoNode(node_x,node_y,-1,father))
         --local node = pajarito.getIndexOfNode(node_x,node_y)
@@ -660,16 +774,15 @@ local function getNodesOnRange(node_x,node_y,range)
     --print('start:',node_x,node_y)
         
     if pajarito.isNodeOnGrid(node_x,node_y) then
-        table.insert(queue_of_nodes,pajaritoNode(math.floor(node_x),math.floor(node_y)))
+        queue_of_nodes.push(pajaritoNode(math.floor(node_x),math.floor(node_y)))
         lst_nodes_on_queue[pajarito.getIndexOfNode(node_x,node_y)] = range
     end
     
-    while queue_of_nodes[1] do
-        local node = queue_of_nodes[1]
+    local node = queue_of_nodes.pop() 
+    while node do
         local index = pajarito.getIndexOfNode(node.x,node.y)
         local w = node.d+math.max(getGridWeight(node.x,node.y),1)
         node.d = w
-        table.remove(queue_of_nodes,1)
         lst_nodes_on_queue[index] = nil
         
         if not pajarito.getNewFatherNode(node.father,node.x,node.y) then
@@ -699,6 +812,8 @@ local function getNodesOnRange(node_x,node_y,range)
                 --check if it is sourronded
             end
         end
+        
+        node = queue_of_nodes.pop() 
     end
     
     for k,v in pairs(lst_border_nodes) do
@@ -838,7 +953,7 @@ function pajarito.pathfinder(node_x,node_y,dest_x,dest_y)
     local node_dest =  nil
     local dest_index = 1
     if pajarito.isNodeOnGrid(node_x,node_y) and pajarito.isNodeOnGrid(dest_x,dest_y) then
-        table.insert(queue_of_nodes,pajaritoNode(math.floor(node_x),math.floor(node_y)))
+        queue_of_nodes.push(pajaritoNode(math.floor(node_x),math.floor(node_y)))
         lst_nodes_on_queue[pajarito.getIndexOfNode(node_x,node_y)] = range
         node_dest = pajaritoNode(math.floor(dest_x),math.floor(dest_y))
         dest_index = pajarito.getIndexOfNode(dest_x,dest_y)
@@ -847,14 +962,12 @@ function pajarito.pathfinder(node_x,node_y,dest_x,dest_y)
     end
     
     local break_bucle = nil
-    
-    while queue_of_nodes[1] do
-        local node = queue_of_nodes[1]
+    local node = queue_of_nodes.pop()
+    while node do
         local index = pajarito.getIndexOfNode(node.x,node.y)
         local w = node.d
         w = w+math.max(getGridWeight(node.x,node.y),1)*pajarito.heuristic(node_dest,node)
         node.d = w
-        table.remove(queue_of_nodes,1)
         lst_nodes_on_queue[index] = nil
         
         
@@ -888,19 +1001,18 @@ function pajarito.pathfinder(node_x,node_y,dest_x,dest_y)
             
             --check if it is sourronded
         end
+        node = queue_of_nodes.pop()
     end
     
     --clear the queue
     --sometimes, a better path is
     --still on the to be processed
     --nodes of the queue
-    while queue_of_nodes[1] do
-        local node = queue_of_nodes[1]
+    while node do
         local index = pajarito.getIndexOfNode(node.x,node.y)
         local w = node.d
         w = w+math.max(getGridWeight(node.x,node.y),1)*pajarito.heuristic(node_dest,node)
         node.d = w
-        table.remove(queue_of_nodes,1)
         lst_nodes_on_queue[index] = nil
         
         
@@ -909,6 +1021,7 @@ function pajarito.pathfinder(node_x,node_y,dest_x,dest_y)
         else
             --pajarito.markBorderNode(node.x,node.y,node)
         end
+        node = queue_of_nodes.pop()
     end
     
     lst_border_nodes = lst_nodes_on_queue
@@ -958,7 +1071,7 @@ function pajarito.clearNodeInfo()
     path_of_nodes = {}
     lst_nodes_on_path = {}
     lst_marked_nodes = {}
-    queue_of_nodes = {}
+    queue_of_nodes.clear()
     lst_nodes_on_queue = {}
     lst_border_nodes = {}
 end
