@@ -208,7 +208,9 @@ local p_is_hexagonal = false
 
 -- Define the tipo of the grid to use. 
 -- we accept the grid
-local grid_is_type = '2D'
+local ARRAY_1D = 1
+local ARRAY_2D = 2
+local grid_is_type = ARRAY_2D
 
 --  Inits a new `pajarito class`
   -- @class function
@@ -246,8 +248,8 @@ function pajarito.init(grid,w,h,diagonal,hexagonal)
     end
     map_height = h
     map_width = w
-    if type(grid[1]) == 'table' then grid_is_type = '2D' end
-    if type(grid[1]) == 'number' then grid_is_type = '1D' end
+    if type(grid[1]) == 'table' then grid_is_type = ARRAY_2D end
+    if type(grid[1]) == 'number' then grid_is_type = ARRAY_1D end
     reference_grid = grid
 end
 
@@ -383,7 +385,7 @@ end
   --  is_on_grid = pajarito.isNodeOnGrid(20,50)
   
 function pajarito.isNodeOnGrid(x,y)
-    if grid_is_type == '2D' then
+    if grid_is_type == ARRAY_2D then
         if reference_grid[y] then
             if reference_grid[y][x] then
                 return true
@@ -391,7 +393,7 @@ function pajarito.isNodeOnGrid(x,y)
         end
         return false
     end
-    if grid_is_type == '1D' then
+    if grid_is_type == ARRAY_1D then
         local id = getIndexOfGrid1D(x,y)
         if reference_grid[id] then
             return true
@@ -415,7 +417,7 @@ end
 
 local function getGridWeight(x,y)
     local w = nil
-    if grid_is_type == '2D' then
+    if grid_is_type == ARRAY_2D then
         if reference_grid[y] then
             if reference_grid[y][x] then
                 w = reference_grid[y][x]
@@ -425,7 +427,7 @@ local function getGridWeight(x,y)
             end
         end
     end
-    if grid_is_type == '1D' then
+    if grid_is_type == ARRAY_1D then
         local id = getIndexOfGrid1D(x,y)
         if reference_grid[id] then
             w = reference_grid[id]
