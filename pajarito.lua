@@ -173,7 +173,7 @@ local lst_marked_nodes = {}
 -- A queue of the nodes to be visited
 local queue_of_nodes = PajaritoHeap()
 queue_of_nodes.compare = function(a, b)
-    return a.d <= b.d  
+    return a.d < b.d  
 end
 
 -- A list of the nodes to be visited
@@ -205,6 +205,14 @@ local p_allow_diagonal = false
 
 -- A value to check if we should treat the grid as a hexagonal one
 local p_is_hexagonal = false
+
+
+-- A function to be called each time want a weight value from a 
+-- point in the grid, mean to be overryde by the user
+-- by default calls to pajarito.getWeightFromTableOf()
+local function weightFunctionCall(grid_value)
+    return pajarito.getWeightFromTableOf(grid_value)
+end
 
 -- Define the tipo of the grid to use. 
 -- we accept the grid
@@ -334,6 +342,53 @@ function pajarito.setWeigthTable(w_table)
     lst_weight_ref = w_table
 end
 
+--  Set a funtion to be called to know the weight of the node 
+--  This function should get as argument the stored value on the grid
+--  and return the weight for the value as a number
+  -- @class function
+  -- @param w_function a function to be called to know the weight of the node
+  -- @return none
+  
+  -- @usage
+  -- -- Use to set a funtion to be called by the pathfinder to know the weight of the node 
+  -- -- in this example, we used a function that returs all odd values as 0 
+  -- -- note that all weights bellow or equal to zero are impassable terrain. 
+  
+  --  function my_function(value_on_grid)
+  --    if (value_on_grid % 2 == 0) then
+  --      return 1
+  --    else
+  --      return 0
+  --    end
+  --  end
+  --
+  --  pajarito.setWeigthFunction(my_function)
+
+function pajarito.setWeigthFunction(w_function)
+    weightFunctionCall = w_function
+end
+
+--  Get the weight from the weight table of a value on grid
+  -- @class function
+  -- @param A value stored on the grid
+  -- @return the weight of the value on the weight table if exist,
+  -- otherwise, returns the default weigth
+  
+  -- @usage
+  -- -- Used internally to get the weight from the weight table
+  -- weight = pajarito.getWeightFromTableOf(value_on_grid)
+  
+function pajarito.getWeightFromTableOf(value_on_grid)
+    if lst_weight_ref then
+        return lst_weight_ref[value_on_grid]
+    end
+    if value_on_grid <= 0 then
+        return 0
+    end
+    return 1
+end
+
+
 --  Get a index for a point on position (x,y)
   -- @class function
   -- @param node_x an integer the x pos of the point on the grid
@@ -416,14 +471,12 @@ end
   --  weight_on_point = getGridWeight(40,12)
 
 local function getGridWeight(x,y)
-    local w = nil
+    local w = 0
     if grid_is_type == ARRAY_2D then
         if reference_grid[y] then
             if reference_grid[y][x] then
                 w = reference_grid[y][x]
-                if lst_weight_ref then
-                    return lst_weight_ref[w]
-                end
+                return weightFunctionCall(w)
             end
         end
     end
@@ -431,9 +484,7 @@ local function getGridWeight(x,y)
         local id = getIndexOfGrid1D(x,y)
         if reference_grid[id] then
             w = reference_grid[id]
-            if lst_weight_ref then
-                return lst_weight_ref[w]
-            end
+            return weightFunctionCall(w)
         end
     end
     if w <= 0 then
@@ -572,7 +623,6 @@ function pajarito.addNodeByPriority(node_x,node_y,d,father)
     if val == 4 then
         queue_of_nodes.push(pajaritoNode(node_x,node_y,d,father))
         lst_nodes_on_queue[pajarito.getIndexOfNode(node_x,node_y)] = d
-    
     elseif val == 1 then
         pajarito.markBorderNode(node_x,node_y,pajaritoNode(node_x,node_y,-1,father))
         --local node = pajarito.getIndexOfNode(node_x,node_y)
@@ -791,16 +841,16 @@ local function getNodesOnRange(node_x,node_y,range)
             if w <= range then
                 pajarito.markNode(node.x,node.y,node)
                 
-                pajarito.addNodeByPriority(node.x+1,node.y,w,index)
-                pajarito.addNodeByPriority(node.x-1,node.y,w,index)
-                pajarito.addNodeByPriority(node.x,node.y-1,w,index)
-                pajarito.addNodeByPriority(node.x,node.y+1,w,index)
+                pajarito.addNodeByPriority(node.x+1,node.y,w+getGridWeight(node.x+1,node.y),index)
+                pajarito.addNodeByPriority(node.x,node.y-1,w+getGridWeight(node.x,node.y-1),index)
+                pajarito.addNodeByPriority(node.x-1,node.y,w+getGridWeight(node.x-1,node.y),index)
+                pajarito.addNodeByPriority(node.x,node.y+1,w+getGridWeight(node.x,node.y+1),index)
                 
                 if p_allow_diagonal then
-                    pajarito.addNodeByPriority(node.x+1,node.y+1,w,index)
-                    pajarito.addNodeByPriority(node.x-1,node.y-1,w,index)
-                    pajarito.addNodeByPriority(node.x+1,node.y-1,w,index)
-                    pajarito.addNodeByPriority(node.x-1,node.y+1,w,index)
+                    pajarito.addNodeByPriority(node.x+1,node.y+1,w+getGridWeight(node.x+1,node.y+1),index)
+                    pajarito.addNodeByPriority(node.x-1,node.y-1,w+getGridWeight(node.x-1,node.y-1),index)
+                    pajarito.addNodeByPriority(node.x+1,node.y-1,w+getGridWeight(node.x+1,node.y-1),index)
+                    pajarito.addNodeByPriority(node.x-1,node.y+1,w+getGridWeight(node.x-1,node.y+1),index)
                 end
                 
                 if p_is_hexagonal then
@@ -929,6 +979,7 @@ end
   
 function pajarito.heuristic(a,b)
     return math.abs(a.x - b.x) + math.abs(a.y - b.y)
+    --return (a.x-b.x)*(a.x-b.x) + (a.y-b.y)*(a.y-b.y)
 end
 
 
@@ -968,11 +1019,10 @@ function pajarito.pathfinder(node_x,node_y,dest_x,dest_y)
     while node do
         local index = pajarito.getIndexOfNode(node.x,node.y)
         local w = node.d
-        w = w+math.max(getGridWeight(node.x,node.y),1)*pajarito.heuristic(node_dest,node)
+        w = w+math.max(getGridWeight(node.x,node.y),0.1)*pajarito.heuristic(node_dest,node)
         node.d = w
         lst_nodes_on_queue[index] = nil
-        
-        
+
         if not pajarito.getNewFatherNode(node.father,node.x,node.y) then
             
             pajarito.markNode(node.x,node.y,node)
@@ -980,16 +1030,16 @@ function pajarito.pathfinder(node_x,node_y,dest_x,dest_y)
                 break
             end
 
-            pajarito.addNodeByPriority(node.x+1,node.y,w,index)
-            pajarito.addNodeByPriority(node.x-1,node.y,w,index)
-            pajarito.addNodeByPriority(node.x,node.y-1,w,index)
-            pajarito.addNodeByPriority(node.x,node.y+1,w,index)
+            pajarito.addNodeByPriority(node.x+1,node.y,w+getGridWeight(node.x+1,node.y),index)
+            pajarito.addNodeByPriority(node.x,node.y-1,w+getGridWeight(node.x,node.y-1),index)
+            pajarito.addNodeByPriority(node.x-1,node.y,w+getGridWeight(node.x-1,node.y),index)
+            pajarito.addNodeByPriority(node.x,node.y+1,w+getGridWeight(node.x,node.y+1),index)
             
             if p_allow_diagonal then
-                pajarito.addNodeByPriority(node.x+1,node.y+1,w,index)
-                pajarito.addNodeByPriority(node.x-1,node.y-1,w,index)
-                pajarito.addNodeByPriority(node.x+1,node.y-1,w,index)
-                pajarito.addNodeByPriority(node.x-1,node.y+1,w,index)
+                pajarito.addNodeByPriority(node.x+1,node.y+1,w+getGridWeight(node.x+1,node.y+1),index)
+                pajarito.addNodeByPriority(node.x-1,node.y-1,w+getGridWeight(node.x-1,node.y-1),index)
+                pajarito.addNodeByPriority(node.x+1,node.y-1,w+getGridWeight(node.x+1,node.y-1),index)
+                pajarito.addNodeByPriority(node.x-1,node.y+1,w+getGridWeight(node.x-1,node.y+1),index)
             end
             
             if p_is_hexagonal then
@@ -1128,3 +1178,4 @@ function pajarito.getInRangeNodes()
 end
 
 return pajarito
+
