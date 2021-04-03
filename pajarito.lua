@@ -841,16 +841,16 @@ local function getNodesOnRange(node_x,node_y,range)
             if w <= range then
                 pajarito.markNode(node.x,node.y,node)
                 
-                pajarito.addNodeByPriority(node.x+1,node.y,w+getGridWeight(node.x+1,node.y),index)
-                pajarito.addNodeByPriority(node.x,node.y-1,w+getGridWeight(node.x,node.y-1),index)
-                pajarito.addNodeByPriority(node.x-1,node.y,w+getGridWeight(node.x-1,node.y),index)
-                pajarito.addNodeByPriority(node.x,node.y+1,w+getGridWeight(node.x,node.y+1),index)
+                pajarito.addNodeByPriority(node.x+1,node.y,w+getGridWeight(node.x+1,node.y)-1,index)
+                pajarito.addNodeByPriority(node.x,node.y-1,w+getGridWeight(node.x,node.y-1)-1,index)
+                pajarito.addNodeByPriority(node.x-1,node.y,w+getGridWeight(node.x-1,node.y)-1,index)
+                pajarito.addNodeByPriority(node.x,node.y+1,w+getGridWeight(node.x,node.y+1)-1,index)
                 
                 if p_allow_diagonal then
-                    pajarito.addNodeByPriority(node.x+1,node.y+1,w+getGridWeight(node.x+1,node.y+1),index)
-                    pajarito.addNodeByPriority(node.x-1,node.y-1,w+getGridWeight(node.x-1,node.y-1),index)
-                    pajarito.addNodeByPriority(node.x+1,node.y-1,w+getGridWeight(node.x+1,node.y-1),index)
-                    pajarito.addNodeByPriority(node.x-1,node.y+1,w+getGridWeight(node.x-1,node.y+1),index)
+                    pajarito.addNodeByPriority(node.x+1,node.y+1,w+getGridWeight(node.x+1,node.y+1)-1,index)
+                    pajarito.addNodeByPriority(node.x-1,node.y-1,w+getGridWeight(node.x-1,node.y-1)-1,index)
+                    pajarito.addNodeByPriority(node.x+1,node.y-1,w+getGridWeight(node.x+1,node.y-1)-1,index)
+                    pajarito.addNodeByPriority(node.x-1,node.y+1,w+getGridWeight(node.x-1,node.y+1)-1,index)
                 end
                 
                 if p_is_hexagonal then
@@ -1030,16 +1030,16 @@ function pajarito.pathfinder(node_x,node_y,dest_x,dest_y)
                 break
             end
 
-            pajarito.addNodeByPriority(node.x+1,node.y,w+getGridWeight(node.x+1,node.y),index)
-            pajarito.addNodeByPriority(node.x,node.y-1,w+getGridWeight(node.x,node.y-1),index)
-            pajarito.addNodeByPriority(node.x-1,node.y,w+getGridWeight(node.x-1,node.y),index)
-            pajarito.addNodeByPriority(node.x,node.y+1,w+getGridWeight(node.x,node.y+1),index)
+            pajarito.addNodeByPriority(node.x+1,node.y,w+getGridWeight(node.x+1,node.y)-1,index)
+            pajarito.addNodeByPriority(node.x,node.y-1,w+getGridWeight(node.x,node.y-1)-1,index)
+            pajarito.addNodeByPriority(node.x-1,node.y,w+getGridWeight(node.x-1,node.y)-1,index)
+            pajarito.addNodeByPriority(node.x,node.y+1,w+getGridWeight(node.x,node.y+1)-1,index)
             
             if p_allow_diagonal then
-                pajarito.addNodeByPriority(node.x+1,node.y+1,w+getGridWeight(node.x+1,node.y+1),index)
-                pajarito.addNodeByPriority(node.x-1,node.y-1,w+getGridWeight(node.x-1,node.y-1),index)
-                pajarito.addNodeByPriority(node.x+1,node.y-1,w+getGridWeight(node.x+1,node.y-1),index)
-                pajarito.addNodeByPriority(node.x-1,node.y+1,w+getGridWeight(node.x-1,node.y+1),index)
+                pajarito.addNodeByPriority(node.x+1,node.y+1,w+getGridWeight(node.x+1,node.y+1)-1,index)
+                pajarito.addNodeByPriority(node.x-1,node.y-1,w+getGridWeight(node.x-1,node.y-1)-1,index)
+                pajarito.addNodeByPriority(node.x+1,node.y-1,w+getGridWeight(node.x+1,node.y-1)-1,index)
+                pajarito.addNodeByPriority(node.x-1,node.y+1,w+getGridWeight(node.x-1,node.y+1)-1,index)
             end
             
             if p_is_hexagonal then
@@ -1178,4 +1178,3 @@ function pajarito.getInRangeNodes()
 end
 
 return pajarito
-
