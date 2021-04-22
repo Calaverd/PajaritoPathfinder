@@ -1541,6 +1541,7 @@ end
   --  pajarito.clearWalls()
 
 function pajarito.clearWalls()
+    num_walls = 0
     lst_of_walls = {}
 end
 
