@@ -1,15 +1,17 @@
 local pajarito = require 'pajarito'
 
-tile_map = { { 1, 3, 2, 3, 1, 1, 1 }, 
-             { 1, 3, 2, 2, 2, 1, 1 }, 
-             { 2, 1, 1, 2, 2, 1, 1 }, 
-             { 1, 2, 3, 1, 1, 3, 3 }, 
-             { 1, 2, 2, 2, 1, 3, 2 },
-             { 1, 1, 1, 3, 3, 3, 2 },
-             { 1, 1, 2, 2, 2, 3, 2 } }
+local tile_map = {
+    { 1, 3, 2, 3, 1, 1, 1 },
+    { 1, 3, 2, 2, 2, 1, 1 },
+    { 2, 1, 1, 2, 2, 1, 1 },
+    { 1, 2, 3, 1, 1, 3, 3 },
+    { 1, 2, 2, 2, 1, 3, 2 },
+    { 1, 1, 1, 3, 3, 3, 2 },
+    { 1, 1, 2, 2, 2, 3, 2 }
+  }
 
-tile_map_width = #tile_map[1]
-tile_map_height = #tile_map
+local tile_map_width = #tile_map[1]
+local tile_map_height = #tile_map
 
 --Define a table of weights and the default weights cost
 --note, values equal or less than 0, are considered impassable terrain
@@ -28,7 +30,7 @@ pajarito.setWeigthTable(table_of_weights)
 build a set of nodes that comprend the set of all the posible
 movement range of  starting from the point (x:4,y:14)
 ]]
-pajarito.buildRange(4,4,15) 
+pajarito.buildRange(4,4,15)
 
 --[[
 Build a list of nodes that form the path.
