@@ -734,10 +734,19 @@ function pajarito.isNodeCompilant(node_x, node_y)
     return 0 --'node no exist'
 end
 
+-- Check if in the code a wall is facing towards a given direction
+-- @param 
+local function isWallFacingDirection(wall, direction)
+    if wall ~= nil then
+        return band(wall, direction) == direction;
+    end
+    return false
+end
+
 --  Takes two nodes ids and checks if is a wall between
 -- @class function
--- @param father an integer, the id of the starting node.
--- @param son an integer, the id of the destiny node.
+-- @param number id of the origin node.
+-- @param number id of the destiny node.
 -- @return boolean, true if there is a wall, false otherwise
 
 -- @usage
@@ -748,76 +757,90 @@ end
 -- -- true if there is a wall
 --  is_wall = isWallBetween(father,son)
 
-local function isWallBetween(father, son)
-    -- first, is there any walls?
-    if num_walls == 0 then return false end
-    -- if father == son then return false end -- you can not collide with yourself...
+local function isWallBetween(origin, destiny)
+    -- first, is there any walls? and you can not collide with yourself
+    if num_walls == 0 or origin == destiny  then return false end
 
-    -- only on a non diagonal, the wall list should have the father or the son on the wall list
-    -- if that is not the case, then thre is no walls between they.
-    if not p_allow_diagonal and not (lst_of_walls[father] or lst_of_walls[son]) then return false end
+    local wall_in_origin = lst_of_walls[origin]
+    local wall_in_destiny = lst_of_walls[destiny]
+
+    -- get the index of the neighbour nodes
+    local front = origin + 1
+    local back  = origin - 1
+    local down  = origin + map_width
+    local up    = origin - map_width
 
     -- for the diagonals, we need to do more checks for each posible point
     if p_allow_diagonal then
-        local front = father + 1
-        local back  = father - 1
-        local down  = father + map_width
-        local up    = father - map_width
+        -- get index of corner nodes
+        local corner_up_right = up+1; -- E
+        local corner_up_left = up-1; -- Q
+        local corner_down_left = down-1; -- Z
+        local corner_down_right = down+1; -- C
 
-        if son == up + 1 then -- aka corner E
-            if lst_of_walls[father] and band(lst_of_walls[father], 64) == 64 then return true end
-            if lst_of_walls[son] and band(lst_of_walls[son], 16) == 16 then return true end
-            if lst_of_walls[front] and band(lst_of_walls[front], 128) == 128 then return true end
-            if lst_of_walls[up] and band(lst_of_walls[up], 32) == 32 then return true end
+        local wall_in_front_origin = lst_of_walls[front]
+        local wall_in_back_origin = lst_of_walls[back]
+        local wall_in_up_origin = lst_of_walls[up]
+        local wall_in_down_origin = lst_of_walls[down]
+
+        if destiny == corner_up_right then
+            if isWallFacingDirection(wall_in_origin, 64) then return true end
+            if isWallFacingDirection(wall_in_destiny, 16) then return true end
+            if isWallFacingDirection(wall_in_front_origin, 128) then return true end
+            if isWallFacingDirection(wall_in_up_origin, 32) then return true end
             return false
         end
 
-        if son == up - 1 then -- aka corner Q
-            if lst_of_walls[father] and band(lst_of_walls[father], 128) == 128 then return true end
-            if lst_of_walls[son] and band(lst_of_walls[son], 32) == 32 then return true end
-            if lst_of_walls[back] and band(lst_of_walls[back], 64) == 64 then return true end
-            if lst_of_walls[up] and band(lst_of_walls[up], 16) == 16 then return true end
+        if destiny == corner_up_left then
+            if isWallFacingDirection(wall_in_origin, 128) then return true end
+            if isWallFacingDirection(wall_in_destiny, 32) then return true end
+            if isWallFacingDirection(wall_in_back_origin, 64) then return true end
+            if isWallFacingDirection(wall_in_up_origin, 16) then return true end
             return false
         end
 
-        if son == down - 1 then -- aka corner Z
-            if lst_of_walls[father] and band(lst_of_walls[father], 16) == 16 then return true end
-            if lst_of_walls[son] and band(lst_of_walls[son], 64) == 64 then return true end
-            if lst_of_walls[back] and band(lst_of_walls[back], 32) == 32 then return true end
-            if lst_of_walls[down] and band(lst_of_walls[down], 128) == 128 then return true end
+        if destiny == corner_down_left then
+            if isWallFacingDirection(wall_in_origin, 16) then return true end
+            if isWallFacingDirection(wall_in_destiny, 64) then return true end
+            if isWallFacingDirection(wall_in_back_origin, 32) then return true end
+            if isWallFacingDirection(wall_in_down_origin, 128) then return true end
             return false
         end
 
-        if son == down + 1 then -- aka corner C
-            if lst_of_walls[father] and band(lst_of_walls[father], 32) == 32 then return true end
-            if lst_of_walls[son] and band(lst_of_walls[son], 128) == 128 then return true end
-            if lst_of_walls[front] and band(lst_of_walls[front], 16) == 16 then return true end
-            if lst_of_walls[down] and band(lst_of_walls[down], 64) == 64 then return true end
+        if destiny == corner_down_right then
+            if isWallFacingDirection(wall_in_origin, 32) then return true end
+            if isWallFacingDirection(wall_in_destiny, 128) then return true end
+            if isWallFacingDirection(wall_in_front_origin, 16) then return true end
+            if isWallFacingDirection(wall_in_down_origin, 64) then return true end
             return false
         end
+    else
+        if not (wall_in_origin or wall_in_destiny) then
+            return false
+        end;
     end
 
-    if father == son - 1 then
-        if lst_of_walls[father] and band(lst_of_walls[father], 4) == 4 then return true end
-        if lst_of_walls[son] and band(lst_of_walls[son], 2) == 2 then return true end
+    if destiny == front then
+        if isWallFacingDirection(wall_in_origin, 4) then return true end
+        if isWallFacingDirection(wall_in_destiny, 2) then return true end
         return false
     end
 
-    if father == son + 1 then
-        if lst_of_walls[father] and band(lst_of_walls[father], 2) == 2 then return true end
-        if lst_of_walls[son] and band(lst_of_walls[son], 4) == 4 then return true end
+    if destiny == back then
+        if isWallFacingDirection(wall_in_origin, 2) then return true end
+        if isWallFacingDirection(wall_in_destiny, 4) then return true end
         return false
     end
 
-    if father == son - map_width then
-        if lst_of_walls[father] and band(lst_of_walls[father], 1) == 1 then return true end
-        if lst_of_walls[son] and band(lst_of_walls[son], 8) == 8 then return true end
+    if destiny == down then
+        if isWallFacingDirection(wall_in_origin, 1) then return true end
+        if isWallFacingDirection(wall_in_destiny, 8) then return true end
         return false
     end
 
-    if father == son + map_width then
-        if lst_of_walls[father] and band(lst_of_walls[father], 8) == 8 then return true end
-        if lst_of_walls[son] and band(lst_of_walls[son], 1) == 1 then return true end
+    if destiny == up then
+        if isWallFacingDirection(wall_in_origin, 8) then return true end
+        if isWallFacingDirection(wall_in_destiny, 1) then return true end
         return false
     end
 
@@ -919,65 +942,63 @@ function pajarito.findABestFatherNode(father, node_x, node_y)
     if p_is_hexagonal then
         local dir = -1
         if FMOD(node_y, 2) == 0 then dir = 1 end
-        tmp_node = nil
+
         if lst_marked_nodes[getIndexOfNode(node_x + dir, node_y - 1)] then
-            temp_node = lst_marked_nodes[getIndexOfNode(node_x + dir, node_y - 1)]
-            if temp_node.d < fd then
-                fd = temp_node.d
-                nf = temp_node
+            tmp_node = lst_marked_nodes[getIndexOfNode(node_x + dir, node_y - 1)]
+            if tmp_node.d < fd then
+                fd = tmp_node.d
+                nf = tmp_node
             end
         end
 
-        tmp_node = nil
         if lst_marked_nodes[getIndexOfNode(node_x + dir, node_y + 1)] then
-            temp_node = lst_marked_nodes[getIndexOfNode(node_x + dir, node_y + 1)]
-            if temp_node.d < fd then
-                fd = temp_node.d
-                nf = temp_node
+            tmp_node = lst_marked_nodes[getIndexOfNode(node_x + dir, node_y + 1)]
+            if tmp_node.d < fd then
+                fd = tmp_node.d
+                nf = tmp_node
             end
         end
 
     end
 
     if p_allow_diagonal then
-        tmp_node = nil
         if lst_marked_nodes[getIndexOfNode(node_x + 1, node_y - 1)]
             and not isWallBetween(getIndexOfNode(node_x + 1, node_y - 1), son_index)
         then
-            temp_node = lst_marked_nodes[getIndexOfNode(node_x + 1, node_y - 1)]
-            if temp_node.d < fd then
-                fd = temp_node.d
-                nf = temp_node
+            tmp_node = lst_marked_nodes[getIndexOfNode(node_x + 1, node_y - 1)]
+            if tmp_node.d < fd then
+                fd = tmp_node.d
+                nf = tmp_node
             end
         end
-        temp_node = nil
+
         if lst_marked_nodes[getIndexOfNode(node_x + 1, node_y + 1)]
             and not isWallBetween(getIndexOfNode(node_x + 1, node_y + 1), son_index)
         then
-            temp_node = lst_marked_nodes[getIndexOfNode(node_x + 1, node_y + 1)]
-            if temp_node.d < fd then
-                fd = temp_node.d
-                nf = temp_node
+            tmp_node = lst_marked_nodes[getIndexOfNode(node_x + 1, node_y + 1)]
+            if tmp_node.d < fd then
+                fd = tmp_node.d
+                nf = tmp_node
             end
         end
-        temp_node = nil
+
         if lst_marked_nodes[getIndexOfNode(node_x - 1, node_y + 1)]
             and not isWallBetween(getIndexOfNode(node_x - 1, node_y + 1), son_index)
         then
-            temp_node = lst_marked_nodes[getIndexOfNode(node_x - 1, node_y + 1)]
-            if temp_node.d < fd then
-                fd = temp_node.d
-                nf = temp_node
+            tmp_node = lst_marked_nodes[getIndexOfNode(node_x - 1, node_y + 1)]
+            if tmp_node.d < fd then
+                fd = tmp_node.d
+                nf = tmp_node
             end
         end
-        temp_node = nil
+
         if lst_marked_nodes[getIndexOfNode(node_x - 1, node_y - 1)]
             and not isWallBetween(getIndexOfNode(node_x - 1, node_y - 1), son_index)
         then
-            temp_node = lst_marked_nodes[getIndexOfNode(node_x - 1, node_y - 1)]
-            if temp_node.d < fd then
-                fd = temp_node.d
-                nf = temp_node
+            tmp_node = lst_marked_nodes[getIndexOfNode(node_x - 1, node_y - 1)]
+            if tmp_node.d < fd then
+                fd = tmp_node.d
+                nf = tmp_node
             end
         end
     end
@@ -986,43 +1007,42 @@ function pajarito.findABestFatherNode(father, node_x, node_y)
     if lst_marked_nodes[getIndexOfNode(node_x, node_y - 1)]
         and not isWallBetween(getIndexOfNode(node_x, node_y - 1), son_index)
     then
-        temp_node = lst_marked_nodes[getIndexOfNode(node_x, node_y - 1)]
-        if temp_node.d < fd then
-            fd = temp_node.d
-            nf = temp_node
-        end
-    end
-    temp_node = nil
-    if lst_marked_nodes[getIndexOfNode(node_x, node_y + 1)]
-        and not isWallBetween(getIndexOfNode(node_x, node_y + 1), son_index)
-    then
-        temp_node = lst_marked_nodes[getIndexOfNode(node_x, node_y + 1)]
-        if temp_node.d < fd then
-            fd = temp_node.d
-            nf = temp_node
-        end
-    end
-    temp_node = nil
-    if lst_marked_nodes[getIndexOfNode(node_x - 1, node_y)]
-        and not isWallBetween(getIndexOfNode(node_x - 1, node_y), son_index)
-    then
-        temp_node = lst_marked_nodes[getIndexOfNode(node_x - 1, node_y)]
-        if temp_node.d < fd then
-            fd = temp_node.d
-            nf = temp_node
-        end
-    end
-    temp_node = nil
-    if lst_marked_nodes[getIndexOfNode(node_x + 1, node_y)]
-        and not isWallBetween(getIndexOfNode(node_x + 1, node_y), son_index)
-    then
-        temp_node = lst_marked_nodes[getIndexOfNode(node_x + 1, node_y)]
-        if temp_node.d < fd then
-            fd = temp_node.d
-            nf = temp_node
+        tmp_node = lst_marked_nodes[getIndexOfNode(node_x, node_y - 1)]
+        if tmp_node.d < fd then
+            fd = tmp_node.d
+            nf = tmp_node
         end
     end
 
+    if lst_marked_nodes[getIndexOfNode(node_x, node_y + 1)]
+        and not isWallBetween(getIndexOfNode(node_x, node_y + 1), son_index)
+    then
+        tmp_node = lst_marked_nodes[getIndexOfNode(node_x, node_y + 1)]
+        if tmp_node.d < fd then
+            fd = tmp_node.d
+            nf = tmp_node
+        end
+    end
+
+    if lst_marked_nodes[getIndexOfNode(node_x - 1, node_y)]
+        and not isWallBetween(getIndexOfNode(node_x - 1, node_y), son_index)
+    then
+        tmp_node = lst_marked_nodes[getIndexOfNode(node_x - 1, node_y)]
+        if tmp_node.d < fd then
+            fd = tmp_node.d
+            nf = tmp_node
+        end
+    end
+
+    if lst_marked_nodes[getIndexOfNode(node_x + 1, node_y)]
+        and not isWallBetween(getIndexOfNode(node_x + 1, node_y), son_index)
+    then
+        tmp_node = lst_marked_nodes[getIndexOfNode(node_x + 1, node_y)]
+        if tmp_node.d < fd then
+            fd = tmp_node.d
+            nf = tmp_node
+        end
+    end
 
     return nf, fd
 end
