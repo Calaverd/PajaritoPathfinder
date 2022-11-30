@@ -1197,7 +1197,7 @@ local function getAndBuildPathInRange(x, y)
     return path_of_nodes
 end
 
---  Generate a path of nodes inside a precalculated range
+--  Generate a path of nodes inside a precalculated range,
 -- @class function
 -- @param x an integer, the x pos of the destination point
 -- @param y an integer, the y pos of the destination point
@@ -1211,7 +1211,11 @@ end
 
 --  buildPathInRange(x,y)
 local function buildPathInRange(x, y)
-    return (#getAndBuildPathInRange(x,y) > 0)
+    local path = getAndBuildPathInRange(x,y);
+    if path then
+        return (#path > 0)
+    end
+    return false
 end
 
 -- Get the Manhattan distance between a node "a" and a node "b"
