@@ -1,9 +1,9 @@
 --- Defines a bit operations AND & OR
 -- This module exist to define the bit operations to work in
 -- a large range of lua versions thaking their quirks into account
--- @classmod Heap
--- @author Calaverd
--- @license MIT
+---@classmod Heap
+---@author Calaverd
+---@license MIT
 
 local FMOD = math.fmod
 -- We are using Lua jit?
@@ -11,7 +11,7 @@ local v_number = tonumber(_VERSION:match '(%d%.%d)')
 if type(jit) == 'table' then
     -- 'Using Lua Jit Bitwise'
     -- import Lua jit bit operations
-    bit = require("bit")
+    local bit = require("bit")
     return {band=bit.band, bor=bit.bor}
 elseif v_number >= 5.3 then
     -- 'Using Lua Built-in Bitwise'

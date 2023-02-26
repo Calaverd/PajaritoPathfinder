@@ -1,4 +1,4 @@
-local pajarito = require 'pajarito'
+local PajaritoGraph = require 'src/Graph'
 
 local tile_map = {
     { 1, 3, 2, 3, 1, 1, 1 },
@@ -21,26 +21,20 @@ table_of_weights[2] = 3  --woods    tile 2 -> 3
 table_of_weights[3] = 0  --mountain tile 3 -> 0  
 
 --set the map
-pajarito.init(tile_map, tile_map_width, tile_map_height)
+local pajarito = PajaritoGraph:new({type = '2D', map = tile_map})
+pajarito:build()
 
 --set the weights
-pajarito.setWeigthTable(table_of_weights)
+pajarito.weight_map = table_of_weights
 
---[[
-build a set of nodes that comprend the set of all the posible
-movement range of  starting from the point (x:4,y:14)
-]]
-pajarito.buildRange(4,4,15)
+local range = pajarito:constructNodeRange({4,4},15)
 
 --[[
 Build a list of nodes that form the path.
 this build list will be used for pajarito to look up other
 requests on the path
 ]]
-local found_path = nil
-if pajarito.buildInRangePathTo(1,1) then
-    found_path = pajarito.getFoundPath()
-end
+local found_path = pajarito:getPathFromNodeRange(range, {1,1})
 
 -- Print the Output 
 local x = 1
@@ -48,8 +42,8 @@ local y = 1
 while y <= tile_map_height do
   x=1
   while x <= tile_map_width do
-    if pajarito.isPointInRange(x,y) then --is inside the area
-        if pajarito.isPointInFoundPath(x,y) then
+    if range:hasPoint(x,y) then --is inside the area
+        if found_path:hasPoint(x,y) then
             if x ==4 and y == 4 then
                 io.write(" @") --start point
             else
@@ -72,6 +66,7 @@ end
 if found_path then
     local path_details = ('(x: %2d, y: %2d) | Seep %2d | Movement: %2d | Grid value Cost: %2d ')
     for key,node in ipairs(found_path) do
+        local x, y = unpack(node.position)
         print(path_details:format(node.x, node.y, key, node.d, pajarito.getWeightAt(node.x,node.y)))
     end
 end

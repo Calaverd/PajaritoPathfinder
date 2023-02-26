@@ -1,9 +1,9 @@
 --- A simple data agnostic Heap implementation.
 -- This heap is build to be data agnostic, so it can work
 -- comparing arbitrary data types. Is used for the priority queue
---@classmod Heap
---@author Calaverd
---@license MIT
+---@class Heap
+---@author Calaverd
+---@license MIT
 local Heap = {}
 
 -- Define the math functions for some small speed bonus
@@ -15,15 +15,15 @@ if not FMOD then -- Why are you usign lua < 5.1 ?
 end
 
 --- Internal function, gets the parent of a node.
---@int id the id of a node in the heap.
---@return int id of parent node.
+---@param id number of a node in the heap.
+---@return number id of parent node.
 local function getParentOf(id)
     if FMOD(id, 2) == 0 then return id / 2 end
     return (id - 1) / 2
 end
 
 --- Constructs a new Heap instance
---@return Heap
+---@return Heap
 function Heap:new()
     local obj = {
         -- index of the last inserted item
@@ -42,23 +42,24 @@ end
 --- A internal function that compares two things.
 --  This function is used to handle the internally comparisions
 -- between items. You can overrride it with your own function
--- as long it returns a boolean
---@see setCompare
---@param object_a
---@param object_b
---@treturn bool True if object_a has more priority than object_b, False otherwise.
+-- as long it returns a boolean true if object_a has more
+-- priority than object_b, False otherwise.
+---@see setCompare
+---@param object_a any
+---@param object_b any
+---@return boolean
 function Heap:compare(object_a, object_b)
     return self.compareFun( object_a, object_b )
 end
 
 --- Takes a new function to use to compare.
---@param function newCompare new function to compare values.
+---@param newCompare fun(object_a:any, object_b:any): boolean
 function Heap:setCompare(newCompare)
     self.compareFun = newCompare or self.compareFun
 end
 
 --- Clears the contents of the heap.
--- Clears the heap from any content, so it can be reused.
+-- Clears from any content, so it can be reused.
 function Heap:clear()
     self.container = {}
     self.last = 0
@@ -69,13 +70,13 @@ end
 -- and sort it according to their priority.
 --  As long as the item can get compared with the ones
 -- already on the heap, anything goes.
---@param data anything to be added.
+---@param data any
 function Heap:push(data)
     --is first element.
     if self.last <= 1 then
         self.container[1] = data
         self.last = 2
-        return nil
+        return
     end
 
     local heap_property = false
@@ -103,7 +104,8 @@ end
 --- Remove and retrive the higher priority item.
 --  This function takes the item with higher priority on
 -- the heap, removes it, and then returns it.
---@return data, nil if heap is empty
+-- returns nill if the heap is empty
+--- @return any item
 function Heap:pop()
     --sawp first and last value
     local top = self.container[1]
@@ -153,13 +155,13 @@ function Heap:pop()
 end
 
 -- Returns the higher priority item and keeps it on the heap.
---@return data the higer priority element on the heap.
+---@return any
 function Heap:peek()
     return self.container[1]
 end
 
 --- Gets the number of items in the heap.
---@return int the number of items in the heap.
+---@return integer
 function Heap:getSize()
     return MMAX(self.last - 1, 0)
 end
