@@ -1,10 +1,12 @@
 local Directions = require "directions"
 
+--- A Node is an object that can be conected to
+--- other Nodes (neighbours). 
 ---@class Node
----@field id integer
----@field tile number|string
----@field position number[]
----@field conections table
+---@field id integer To identify the node in the grid.
+---@field tile number|string The tile value on the equivalent map
+---@field position number[] A list for the position on [x,y,z]
+---@field conections table The nodes that are neighbours to this one.
 local Node = {}
 
 local FLOOR = math.floor

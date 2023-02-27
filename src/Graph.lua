@@ -12,6 +12,10 @@ local NodePath = require "NodePath";
 ---@diagnostic disable-next-line: deprecated
 local unpack = unpack or table.unpack
 
+--- A class for the representation of
+--- maps as Graph. \
+--- Is composed of nodes and allows for
+--- operations on them.
 ---@class Graph
 ---@field node_map {numeber:Node} A list of all the nodes on this graph
 ---@field weight_map table<number,number> A map for the weight of tiles
@@ -102,6 +106,7 @@ function Graph:build()
     if self.settings.type == '2D' then
         self:buildFrom2DMap(self.settings.map)
     end
+    self.weight_map = self.settings.weights or {}
 end
 
 --- Creates a new priority heap that will contain
@@ -176,7 +181,7 @@ end
 ---@param start number[] Starting point
 ---@param max_cost number max cost of the paths contained
 ---@param type_movement? string manhattan or diagonal
----@return NodeRange
+---@return NodeRange range
 function Graph:constructNodeRange(start, max_cost, type_movement)
     local start_node = self:getNode( self:listTableToMapId(start) )
     if not start_node then
@@ -228,60 +233,17 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
         width = #self.settings.map[1]
     end
 
-    return NodeRange:new(
-        start_node.id,
-        nodes_explored,
-        type_movement or "manhattan",
-        {width, height, depth})
+    local range = NodeRange:new({
+        range = max_cost,
+        start_id = start_node.id,
+        node_traversal_weights = nodes_explored,
+        type_movement  = type_movement or "manhattan",
+        width = width, height = height, depth = depth,
+        map_type = self.settings.type,
+        graphGetNode = function (id) return self:getNode(id) end
+    })
+    return range
 end
-
---- Generates a path connecting the start node of
---- the node range to the destination node.
---- If no path exists, an empty list is returned.
----@param node_range NodeRange The range of nodes to search for the path.
----@param destination number[] The node to connect to in the range.
----@return NodePath path of nodes connecting the start node to the destination node.
-function Graph:getPathFromNodeRange(node_range, destination)
-    local destination_node = self:getNode( self:listTableToMapId(destination) )
-    local range = node_range.range
-    local path = NodePath:new(node_range.map_size)
-
-    if not destination_node or not range[destination_node.id] then
-        return path
-    end
-
-    local start_node_id = node_range.start_id
-    local current = destination_node
-    local allowed_directions = Directions[self.settings.type][node_range.type_movement]
-
-    path:addNode(current)
-    while current.id ~= start_node_id do
-        local best_node = nil
-        local best_node_weight = 1000000
-        for _,direction in ipairs( allowed_directions ) do
-            local node = current.conections[direction]
-
-            if not node or not range[node.id] then
-                goto continue
-            end
-
-            if range[node.id] < best_node_weight then
-                best_node = self:getNode(node.id)
-                best_node_weight = range[node.id]
-            end
-
-            ::continue::
-        end
-        if not best_node then
-            print('Error, can not build path')
-            return {}
-        end
-        current = best_node
-        path:addNode(current)
-    end
-    return path
-end
-
 
 local graph1 = Graph:new({
     type = '2D',
@@ -304,16 +266,21 @@ local node_range = graph1:constructNodeRange({1,1},5)
 print('Nodes in range strating at x:1,y:1 = ')
 print(' start node id: '..node_range.start_id)
 print(' traverse type: '..node_range.type_movement)
-for node_id,weight in pairs(node_range.range) do
+for node_id,weight in pairs(node_range.node_traversal_weights) do
     local x,y = unpack(graph1:getNode(node_id).position)
     print(' node '..' ('..x..', '..y..')'..' -> weight: '..weight)
 end
 print('find path from [1,1] to [3,3]')
-local path = graph1:getPathFromNodeRange(node_range, {3,3})
+local path = node_range:getPathTo({3,3})
 for steep, node in ipairs(path.node_list) do
     local x,y = unpack(node.position)
     print(''..steep..' , ('..x..', '..y..')')
 end
 
+print('Using a custom iterator')
+for steep, node in path:getNodes() do
+    local x,y = unpack(node.position)
+    print(''..steep..' , ('..x..', '..y..')')
+end
 
 return Graph

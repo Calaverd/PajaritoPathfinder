@@ -21,20 +21,11 @@ table_of_weights[2] = 3  --woods    tile 2 -> 3
 table_of_weights[3] = 0  --mountain tile 3 -> 0  
 
 --set the map
-local pajarito = PajaritoGraph:new({type = '2D', map = tile_map})
+local pajarito = PajaritoGraph:new({type = '2D', map = tile_map, weights = table_of_weights})
 pajarito:build()
 
---set the weights
-pajarito.weight_map = table_of_weights
-
 local range = pajarito:constructNodeRange({4,4},15)
-
---[[
-Build a list of nodes that form the path.
-this build list will be used for pajarito to look up other
-requests on the path
-]]
-local found_path = pajarito:getPathFromNodeRange(range, {1,1})
+local found_path = range:getPathTo({1,1})
 
 -- Print the Output 
 local x = 1
@@ -42,8 +33,8 @@ local y = 1
 while y <= tile_map_height do
   x=1
   while x <= tile_map_width do
-    if range:hasPoint(x,y) then --is inside the area
-        if found_path:hasPoint(x,y) then
+    if range:hasPoint({x,y}) then --is inside the area
+        if found_path:hasPoint({x,y}) then
             if x ==4 and y == 4 then
                 io.write(" @") --start point
             else
@@ -65,8 +56,8 @@ end
 
 if found_path then
     local path_details = ('(x: %2d, y: %2d) | Seep %2d | Movement: %2d | Grid value Cost: %2d ')
-    for key,node in ipairs(found_path) do
+    for steep,node in found_path:getNodes()  do
         local x, y = unpack(node.position)
-        print(path_details:format(node.x, node.y, key, node.d, pajarito.getWeightAt(node.x,node.y)))
+        print(path_details:format(x, y, steep, node.d, pajarito.getWeightAt(node.x,node.y)))
     end
 end
