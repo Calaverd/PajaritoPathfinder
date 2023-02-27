@@ -11,9 +11,10 @@ local Directions = require "directions"
 ---@class NodeRange
 ---@field start_id number id of the node from were the range starts
 ---@field range number max allowed weight for traversal
----@field node_traversal_weights {number: number} map of Node id to their corresponding weight in the range
+---@field node_traversal_weights {NodeID: number} map of Node id to their corresponding weight in the range
 ---@field type_movement string what movement is used to build the range
----@field private graphGetNode fun(id:number): Node|nil
+---@field border {NodeID: number} map of Node id that contains the border nodes to this range.
+---@field private graphGetNode fun(id:NodeID): Node|nil
 ---@field private map_type string
 ---@field private width number width from the graph map
 ---@field private height number height from the graph map
@@ -22,6 +23,7 @@ local NodeRange = {}
 
 ---@diagnostic disable-next-line: deprecated
 local unpack = unpack or table.unpack
+local max = math.max
 
 --- Defines a new node range.
 ---@param settings table
@@ -34,25 +36,57 @@ function NodeRange:new(settings)
     return obj
 end
 
+---@private
+---@param point number[]
+---@return NodeID
+function NodeRange:getIdFromPoint(point)
+    local x,y,z = unpack(point)
+    return Node.getPointId(x or 0, y or 0, z or 0, self.width, self.height, self.depth)
+end
+
 --- Checks if a given point is contained
 --- whitin the NodeRange, if is contained
 --- returns the id of the point, otherwise
 --- returns false
 ---@param point number[]
----@return number|boolean
+---@return NodeID|boolean
 function NodeRange:hasPoint(point)
-    local x,y,z = unpack(point)
-    local id = Node.getPointId(x or 0, y or 0, z or 0, self.width, self.height, self.depth)
+    local id = self:getIdFromPoint(point)
     if self.node_traversal_weights[id] ~= nil then
         return id
     end
     return false
 end
 
+--- Checks if a given point is contained
+--- whitin the border of this NodeRange.
+--- if is contained returns the id of
+--- the point, otherwise returns false
+---@param point number[]
+---@return NodeID|boolean
+function NodeRange:borderHasPoint(point)
+    local id = self:getIdFromPoint(point)
+    if self.border[id] ~= nil then
+        return id
+    end
+    return false
+end
+
+--- Returns the weight of the border node.\
+--- If is a negative number, the node can not
+--- be reached by their neighbours, if nil, the
+--- node does not exist on the border.
+---@param id NodeID
+---@return number|nil
+function NodeRange:getBorderWeight(id)
+    return self.border[id]
+end
+
+
 --- Makes use of the method getNode from the
 --- graph that creates the node range so it
 --- can return the node
----@param node_id number
+---@param node_id NodeID
 ---@return Node|nil
 function NodeRange:getNode(node_id)
     return self.graphGetNode(node_id)
@@ -67,7 +101,7 @@ end
 function NodeRange:getPathTo(destination)
     local destination_id = self:hasPoint(destination)
 
-    local path = NodePath:new({width = self.width, height = self.height, depth = self.depth})
+    local path = NodePath:new( 0, {self.width, self.height, self.depth})
     if not destination_id then
         return path
     end
@@ -78,6 +112,7 @@ function NodeRange:getPathTo(destination)
     local allowed_directions = Directions[self.map_type][self.type_movement]
 
     path:addNode(current)
+    path.weight = traversal_weights[destination_id]
     while current.id ~= start_node_id do
         local best_node = nil
         local best_node_weight = 1000000
@@ -97,9 +132,10 @@ function NodeRange:getPathTo(destination)
         end
         if not best_node then
             print('Error, can not build path')
-            return {}
+            return path
         end
         current = best_node
+        path.weight = max(path.weight, best_node_weight)
         path:addNode(current)
     end
     return path

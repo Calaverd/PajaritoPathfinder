@@ -5,8 +5,6 @@ local Heap = require "heap";
 local Node = require "Node";
 ---@module "NodeRange"
 local NodeRange = require "NodeRange";
----@module "NodePath"
-local NodePath = require "NodePath";
 
 
 ---@diagnostic disable-next-line: deprecated
@@ -189,18 +187,20 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
     end
     local start_weight = self.weight_map[start_node.tile] or start_node.tile
 
-    local nodes_explored = {};
+    local nodes_explored = {}
     local nodes_in_queue = {}
-    local node_queue = self:newNodeHeap();
+    local nodes_in_border = {}
+    local node_queue = self:newNodeHeap()
     local allowed_directions = Directions[self.settings.type][type_movement or 'manhattan']
 
     nodes_explored[start_node.id] = start_weight;
     node_queue:push(start_node);
     while node_queue:getSize() > 0 do
-        ---@type Node
-        local current = node_queue:pop()
+
+        local current = node_queue:pop() --[[@as Node]]
         local weight = nodes_in_queue[current.id] or start_weight
         nodes_in_queue[current.id] = nil;
+
         for _,direction in ipairs( allowed_directions ) do
             local node = current.conections[direction]
 
@@ -210,14 +210,20 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
 
             local node_weight = self.weight_map[node.tile] or node.tile
             local total_weight = node_weight+weight
-
+            local is_way_posible = self:isWayPosible(current, node, direction)
             if  nodes_explored[node.id] == nil -- is not yet explored
-                and nodes_in_queue[node.id] == nil -- is yet not in queue
-                and not (total_weight > max_cost) -- is not beyond range
-                and self:isWayPosible(current, node, direction) then
-                    -- print(' Adding node in direction '..Directions.names[direction])
-                nodes_in_queue[node.id] = total_weight
-                node_queue:push(node)
+                and nodes_in_queue[node.id] == nil -- is not yet in queue
+                then
+                if is_way_posible and not (total_weight > max_cost)  then -- is not beyond range
+                    nodes_in_queue[node.id] = total_weight
+                    node_queue:push(node)
+                else
+                    local border_weight = total_weight
+                    if not is_way_posible then
+                        border_weight = -1
+                    end
+                    nodes_in_border[node.id] = border_weight
+                end
             end
 
             ::continue::
@@ -237,6 +243,7 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
         range = max_cost,
         start_id = start_node.id,
         node_traversal_weights = nodes_explored,
+        border = nodes_in_border,
         type_movement  = type_movement or "manhattan",
         width = width, height = height, depth = depth,
         map_type = self.settings.type,
@@ -244,7 +251,7 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
     })
     return range
 end
-
+--[[
 local graph1 = Graph:new({
     type = '2D',
     map = {
@@ -278,9 +285,10 @@ for steep, node in ipairs(path.node_list) do
 end
 
 print('Using a custom iterator')
+print('Path weight is: '..path.weight)
 for steep, node in path:getNodes() do
     local x,y = unpack(node.position)
     print(''..steep..' , ('..x..', '..y..')')
 end
-
+--]]
 return Graph

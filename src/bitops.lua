@@ -8,6 +8,7 @@
 local FMOD = math.fmod
 -- We are using Lua jit?
 local v_number = tonumber(_VERSION:match '(%d%.%d)')
+---@diagnostic disable-next-line: undefined-global
 if type(jit) == 'table' then
     -- 'Using Lua Jit Bitwise'
     -- import Lua jit bit operations

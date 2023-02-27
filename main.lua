@@ -1,4 +1,4 @@
-local PajaritoGraph = require 'src/Graph'
+local PajaritoGraph = require 'src.Graph'
 
 local tile_map = {
     { 1, 3, 2, 3, 1, 1, 1 },
@@ -43,7 +43,7 @@ while y <= tile_map_height do
         else
             io.write(' +')
         end
-    elseif pajarito.isPointInRangeBorder(x,y) then
+    elseif range:borderHasPoint({x,y}) then
             io.write(' ?')
     else
         io.write(' _')
@@ -54,6 +54,7 @@ while y <= tile_map_height do
   y=y+1
 end
 
+--[[
 if found_path then
     local path_details = ('(x: %2d, y: %2d) | Seep %2d | Movement: %2d | Grid value Cost: %2d ')
     for steep,node in found_path:getNodes()  do
@@ -61,3 +62,4 @@ if found_path then
         print(path_details:format(x, y, steep, node.d, pajarito.getWeightAt(node.x,node.y)))
     end
 end
+---]]

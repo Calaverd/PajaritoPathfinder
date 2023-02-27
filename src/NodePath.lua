@@ -5,6 +5,8 @@ local Node = require "Node"
 --- to follow in order to traverse from a node to another.
 ---@class NodePath
 ---@field node_list Node[] A list of the nodes in the path
+---@field weight number The cost of traversing this path in the range.
+---@field contains {NodeID:boolean} A map to check if the path has a node
 ---@field private width number width from the graph map
 ---@field private height number height from the graph map
 ---@field private depth number depth from the graph map
@@ -14,18 +16,21 @@ local NodePath = {}
 local unpack = unpack or table.unpack
 
 --- Defines a new node range.
+---@param weight number
 ---@param map_size number[]
 ---@return NodePath
-function NodePath:new(map_size)
+function NodePath:new(weight, map_size)
     local width, height, depth = unpack(map_size)
     local obj = {
+        weight = weight,
         node_list     = {},
         ---@protected
-        width = width,
+        width = width or 0,
         ---@protected
-        height = height,
+        height = height or 0,
         ---@protected
-        depth = depth
+        depth = depth or 0,
+        contains = {}
     }
     setmetatable(obj, self)
     self.__index = self
@@ -35,7 +40,14 @@ end
 ---Adds a node
 ---@param node Node
 function NodePath:addNode(node)
+    self.contains[node.id] = true
     table.insert(self.node_list, 1, node)
+end
+
+--- Give the number of nodes on the path.
+---@return integer len
+function NodePath:getLen()
+    return #self.node_list
 end
 
 --- A function that chek if the
@@ -81,7 +93,7 @@ end
 function NodePath:hasPoint(point)
     local x,y,z = unpack(point)
     local id = Node.getPointId(x or 0, y or 0, z or 0, self.width, self.height, self.depth)
-    return self.node_list[id] ~= nil
+    return self.contains[id] ~= nil
 end
 
 return NodePath
