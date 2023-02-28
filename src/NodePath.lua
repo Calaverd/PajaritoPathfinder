@@ -1,4 +1,3 @@
----@module "Node"
 local Node = require "Node"
 
 --- A class that contains the necessary nodes

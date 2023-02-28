@@ -1,8 +1,5 @@
----@module "Node"
 local Node = require "Node"
----@module "NodePath"
 local NodePath = require "NodePath"
-
 local Directions = require "directions"
 
 --- Contains a set of nodes that represent the
@@ -109,7 +106,7 @@ function NodeRange:getPathTo(destination)
     local start_node_id = self.start_id
     local traversal_weights = self.node_traversal_weights
     local current = self:getNode(destination_id --[[@as number]]) --[[@as Node]]
-    local allowed_directions = Directions[self.map_type][self.type_movement]
+    local allowed_directions = Directions[self.map_type][self.type_movement] --[=[@as number[]]=]
 
     path:addNode(current)
     path.weight = traversal_weights[destination_id]

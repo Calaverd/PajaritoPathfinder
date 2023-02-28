@@ -1,9 +1,6 @@
 local Directions = require "directions"
----@module "heap"
 local Heap = require "heap";
----@module "Node"
 local Node = require "Node";
----@module "NodeRange"
 local NodeRange = require "NodeRange";
 
 

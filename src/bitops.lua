@@ -1,19 +1,25 @@
 --- Defines a bit operations AND & OR
 -- This module exist to define the bit operations to work in
 -- a large range of lua versions thaking their quirks into account
----@classmod Heap
----@author Calaverd
----@license MIT
 
 local FMOD = math.fmod
 -- We are using Lua jit?
 local v_number = tonumber(_VERSION:match '(%d%.%d)')
+
+--- A simple wraper for the bit operations that
+--- are used so can they work in different lua
+--- environments
+---@class bitops
+---@field band fun(a:integer, b:integer):integer
+---@field bor fun(a:integer, b:integer):integer
+local bitops = {}
+
 ---@diagnostic disable-next-line: undefined-global
 if type(jit) == 'table' then
     -- 'Using Lua Jit Bitwise'
     -- import Lua jit bit operations
     local bit = require("bit")
-    return {band=bit.band, bor=bit.bor}
+    bitops = {band=bit.band, bor=bit.bor}
 elseif v_number >= 5.3 then
     -- 'Using Lua Built-in Bitwise'
     -- use lua build-in bitwise operators
@@ -21,14 +27,14 @@ elseif v_number >= 5.3 then
     -- on lower versions of Lua while is parsing
     local band = load("return function (a,b) return (a & b) end")()
     local bor = load("return function (a,b) return (a | b) end")()
-    return {band=band, bor=bor}
+    bitops = {band=band, bor=bor}
 else
+    -- 'Using the Lua lib "bit32" for Bitwise'
     -- no Lua jit nor lua 5.3 >:(
     -- try import bit32
     local status_ok, bit = pcall(require, "bit32")
     if (status_ok) then
-        -- 'Using Lua bit32 Bitwise'
-        return {band=bit.band, bor=bit.bor}
+        bitops = {band=bit.band, bor=bit.bor}
     else
         -- 'Using Pure Lua Bitwise'
         -- Why are you doing this to yourself?
@@ -53,6 +59,8 @@ else
             end
             return c
         end
-        return {band=band, bor=bor}
+        bitops = {band=band, bor=bor}
     end
 end
+
+return bitops

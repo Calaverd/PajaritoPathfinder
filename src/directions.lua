@@ -31,72 +31,78 @@ local SOUTH_UP_RIGHT = 29
 local SOUTH_DOWN_LEFT = 31
 local SOUTH_DOWN_RIGHT = 33
 
-local direction_names = {}
-direction_names[256] = "NORTH"
-direction_names[3] = "NORTH_UP"
-direction_names[5] = "NORTH_LEFT"
-direction_names[7] = "NORTH_RIGHT"
-direction_names[9] = "NORTH_DOWN"
-direction_names[11] = "NORTH_UP_LEFT"
-direction_names[13] = "NORTH_UP_RIGHT"
-direction_names[15] = "NORTH_DOWN_LEFT"
-direction_names[17] = "NORTH_DOWN_RIGHT"
-direction_names[2] = "UP_LEFT"
-direction_names[4] = "UP"
-direction_names[8] = "UP_RIGHT"
-direction_names[1] = "LEFT"
-direction_names[16] = "RIGHT"
-direction_names[32] = "DOWN_RIGHT"
-direction_names[64] = "DOWN"
-direction_names[128] = "DOWN_LEFT"
-direction_names[512] = "SOUTH"
-direction_names[19] = "SOUTH_UP"
-direction_names[21] = "SOUTH_LEFT"
-direction_names[23] = "SOUTH_RIGHT"
-direction_names[25] = "SOUTH_DOWN"
-direction_names[27] = "SOUTH_UP_LEFT"
-direction_names[29] = "SOUTH_UP_RIGHT"
-direction_names[31] = "SOUTH_DOWN_LEFT"
-direction_names[33] = "SOUTH_DOWN_RIGHT"
+---@enum direction_names
+local direction_names = {
+    [256] = "NORTH",
+    [3] = "NORTH_UP",
+    [5] = "NORTH_LEFT",
+    [7] = "NORTH_RIGHT",
+    [9] = "NORTH_DOWN",
+    [11] = "NORTH_UP_LEFT",
+    [13] = "NORTH_UP_RIGHT",
+    [15] = "NORTH_DOWN_LEFT",
+    [17] = "NORTH_DOWN_RIGHT",
+    [2] = "UP_LEFT",
+    [4] = "UP",
+    [8] = "UP_RIGHT",
+    [1] = "LEFT",
+    [16] = "RIGHT",
+    [32] = "DOWN_RIGHT",
+    [64] = "DOWN",
+    [128] = "DOWN_LEFT",
+    [512] = "SOUTH",
+    [19] = "SOUTH_UP",
+    [21] = "SOUTH_LEFT",
+    [23] = "SOUTH_RIGHT",
+    [25] = "SOUTH_DOWN",
+    [27] = "SOUTH_UP_LEFT",
+    [29] = "SOUTH_UP_RIGHT",
+    [31] = "SOUTH_DOWN_LEFT",
+    [33] = "SOUTH_DOWN_RIGHT"
+}
 
 --- A list that contains the only directions valid to use for walls.
-local Allowed_Walls = {}
-Allowed_Walls["NORTH"]=NORTH
-Allowed_Walls["LEFT"]=LEFT
-Allowed_Walls["UP_LEFT"]=UP_LEFT
-Allowed_Walls["UP"]=UP
-Allowed_Walls["UP_RIGHT"]=UP_RIGHT
-Allowed_Walls["RIGHT"]=RIGHT
-Allowed_Walls["DOWN_RIGHT"]=DOWN_RIGHT
-Allowed_Walls["DOWN"]=DOWN
-Allowed_Walls["DOWN_LEFT"]=DOWN_LEFT
-Allowed_Walls["SOUTH"] = SOUTH
+---@enum Allowed_Walls
+local Allowed_Walls = {
+    NORTH = NORTH,
+    LEFT = LEFT,
+    UP_LEFT = UP_LEFT,
+    UP = UP,
+    UP_RIGHT = UP_RIGHT,
+    RIGHT = RIGHT,
+    DOWN_RIGHT = DOWN_RIGHT,
+    DOWN = DOWN,
+    DOWN_LEFT = DOWN_LEFT,
+    SOUTH = SOUTH
+}
 
-local Allowed_Flips = {}
-Allowed_Flips["NORTH"]=SOUTH
-Allowed_Flips["LEFT"]=RIGHT
-Allowed_Flips["UP_LEFT"]=DOWN_RIGHT
-Allowed_Flips["UP"]=DOWN
-Allowed_Flips["UP_RIGHT"]=DOWN_LEFT
-Allowed_Flips["RIGHT"]=LEFT
-Allowed_Flips["DOWN_RIGHT"]=UP_LEFT
-Allowed_Flips["DOWN"]=UP
-Allowed_Flips["DOWN_LEFT"]=UP_RIGHT
-Allowed_Flips["SOUTH"] = NORTH
+--- A simple enum for the directions
+--- and their flips either using the
+--- number or the string name
+---@enum Allowed_Flips
+local Allowed_Flips = {
+    NORTH = SOUTH,
+    LEFT = RIGHT,
+    UP_LEFT = DOWN_RIGHT,
+    UP = DOWN,
+    UP_RIGHT = DOWN_LEFT,
+    RIGHT = LEFT,
+    DOWN_RIGHT = UP_LEFT,
+    DOWN = UP,
+    DOWN_LEFT = UP_RIGHT,
+    SOUTH   = NORTH,
 
-Allowed_Flips[NORTH]=SOUTH
-Allowed_Flips[LEFT]=RIGHT
-Allowed_Flips[UP_LEFT]=DOWN_RIGHT
-Allowed_Flips[UP]=DOWN
-Allowed_Flips[UP_RIGHT]=DOWN_LEFT
-Allowed_Flips[RIGHT]=LEFT
-Allowed_Flips[DOWN_RIGHT]=UP_LEFT
-Allowed_Flips[DOWN]=UP
-Allowed_Flips[DOWN_LEFT]=UP_RIGHT
-Allowed_Flips[SOUTH] = NORTH
-
-
-
+    [NORTH] = SOUTH,
+    [LEFT] = RIGHT,
+    [UP_LEFT] = DOWN_RIGHT,
+    [UP] = DOWN,
+    [UP_RIGHT] = DOWN_LEFT,
+    [RIGHT] = LEFT,
+    [DOWN_RIGHT] = UP_LEFT,
+    [DOWN] = UP,
+    [DOWN_LEFT] = UP_RIGHT,
+    [SOUTH] = NORTH,
+}
 
 ---@enum VON_NEUMANN_NEIGHBORHOOD
 local FULL_VON_NEUMANN_NEIGHBORHOOD = {
@@ -143,11 +149,15 @@ return {
     --- The sets of posible allowed directions to move that
     -- can be taken on the grid based on the grid tipe and move
     ["2D"] = {
+        ---@type number[]
         manhattan = {UP,LEFT,RIGHT,DOWN},
+        ---@type number[]
         diagonal = {UP,LEFT,RIGHT,DOWN,UP_LEFT,UP_RIGHT,DOWN_LEFT,DOWN_RIGHT}
     },
     ["3D"] = {
+        ---@type number[]
         manhattan = {UP,LEFT,RIGHT,DOWN,NORTH, SOUTH},
+        ---@type number[]
         diagonal = {NORTH,NORTH_UP,NORTH_LEFT,NORTH_RIGHT,NORTH_DOWN,NORTH_UP_LEFT,NORTH_UP_RIGHT,NORTH_DOWN_LEFT,NORTH_DOWN_RIGHT,UP,LEFT,RIGHT,DOWN,UP_LEFT,UP_RIGHT,DOWN_LEFT,DOWN_RIGHT,SOUTH,SOUTH_UP,SOUTH_LEFT,SOUTH_RIGHT,SOUTH_DOWN,SOUTH_UP_LEFT,SOUTH_UP_RIGHT,SOUTH_DOWN_LEFT,SOUTH_DOWN_RIGHT}
     },
     ---Takes any number of argument numbers and creates a
@@ -177,6 +187,10 @@ return {
         end
         return band(wall,Allowed_Walls[direction]) == direction
     end,
+    --- Takes the name or the number id of a direction AND
+    --- returns the fliped direction number id
+    ---@param direction string|integer
+    ---@return integer
     flip = function (direction)
         return Allowed_Flips[direction]
     end
