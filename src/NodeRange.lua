@@ -55,6 +55,19 @@ function NodeRange:hasPoint(point)
     return false
 end
 
+--- Returns the weight of a given id
+--- whitin the range.
+--- If not exist the node, returns -1
+---@param id NodeID
+---@return number
+function NodeRange:getWeight(id)
+    local weight = self.node_traversal_weights[id]
+    if weight then
+        return weight
+    end
+    return -1
+end
+
 --- Checks if a given point is contained
 --- whitin the border of this NodeRange.
 --- if is contained returns the id of

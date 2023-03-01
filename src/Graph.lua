@@ -111,9 +111,8 @@ function Graph:newNodeHeap()
     ---@type Heap
     local heap = Heap:new();
     heap:setCompare( function (node_a, node_b)
-        local weight_a = self.weight_map[node_a.tile] or node_a.tile
-        local weight_b = self.weight_map[node_b.tile] or node_b.tile
-        return weight_a < weight_b
+        -- vale 1 is the Node, value 2 is the accumulated_weight!
+        return node_a[2] < node_b[2]
     end )
     return heap
 end
@@ -182,7 +181,7 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
     if not start_node then
         return {}
     end
-    local start_weight = self.weight_map[start_node.tile] or start_node.tile
+    local start_weight =  0 --self.weight_map[start_node.tile] or start_node.tile
 
     local nodes_explored = {}
     local nodes_in_queue = {}
@@ -191,10 +190,11 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
     local allowed_directions = Directions[self.settings.type][type_movement or 'manhattan']
 
     nodes_explored[start_node.id] = start_weight;
-    node_queue:push(start_node);
+    node_queue:push({start_node, start_weight});
     while node_queue:getSize() > 0 do
 
-        local current = node_queue:pop() --[[@as Node]]
+        local poped = node_queue:pop()
+        local current = poped[1] --[[@as Node]]
         local weight = nodes_in_queue[current.id] or start_weight
         nodes_in_queue[current.id] = nil;
 
@@ -206,16 +206,17 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
             end
 
             local node_weight = self.weight_map[node.tile] or node.tile
-            local total_weight = node_weight+weight
+            local accumulated_weight = node_weight+weight
             local is_way_posible = self:isWayPosible(current, node, direction)
             if  nodes_explored[node.id] == nil -- is not yet explored
                 and nodes_in_queue[node.id] == nil -- is not yet in queue
                 then
-                if is_way_posible and not (total_weight > max_cost)  then -- is not beyond range
-                    nodes_in_queue[node.id] = total_weight
-                    node_queue:push(node)
+                if is_way_posible and not (max_cost <= accumulated_weight)  then -- is not beyond range
+                    nodes_in_queue[node.id] = accumulated_weight
+                    --- We save to the queue the node and their acumulated weight
+                    node_queue:push({node, accumulated_weight})
                 else
-                    local border_weight = total_weight
+                    local border_weight = accumulated_weight
                     if not is_way_posible then
                         border_weight = -1
                     end
