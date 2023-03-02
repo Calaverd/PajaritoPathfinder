@@ -44,7 +44,13 @@ while y <= tile_map_height do
             io.write(' +')
         end
     elseif range:borderHasPoint({x,y}) then
-        io.write(' ?')
+        local id = range:borderHasPoint({x,y}) or 0
+        local border_weight = range:getBorderWeight(id)
+        if border_weight and border_weight > 0 then
+            io.write(' *') -- is pasable
+        else
+            io.write(' !') -- is impassable
+        end
     else
         io.write(' _')
     end
@@ -59,5 +65,5 @@ local path_details = ('(x: %2d, y: %2d) | Seep %2d | Movement: %2d | Grid value 
 local unpack = unpack or table.unpack
 for steep,node in found_path:getNodes()  do
     local x, y = unpack(node.position)
-    print(path_details:format(x, y, steep, range:getWeight(node.id), pajarito.weight_map[node.tile] or node.tile ))
+    print(path_details:format(x, y, steep, range:getReachCostAt(node.id), pajarito:getNodeWeight(node) ))
 end

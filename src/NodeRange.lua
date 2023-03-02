@@ -55,12 +55,12 @@ function NodeRange:hasPoint(point)
     return false
 end
 
---- Returns the weight of a given id
---- whitin the range.
---- If not exist the node, returns -1
+--- Returns the sum of all the weights from the tiles
+--- traveled to reach this point in the range.\
+--- If the node is not contained, returns -1
 ---@param id NodeID
 ---@return number
-function NodeRange:getWeight(id)
+function NodeRange:getReachCostAt(id)
     local weight = self.node_traversal_weights[id]
     if weight then
         return weight
@@ -69,8 +69,8 @@ function NodeRange:getWeight(id)
 end
 
 --- Checks if a given point is contained
---- whitin the border of this NodeRange.
---- if is contained returns the id of
+--- whitin the border of this NodeRange.\
+--- If is contained returns the id of
 --- the point, otherwise returns false
 ---@param point number[]
 ---@return NodeID|boolean
@@ -84,8 +84,8 @@ end
 
 --- Returns the weight of the border node.\
 --- If is a negative number, the node can not
---- be reached by their neighbours, if nil, the
---- node does not exist on the border.
+--- be reached by their neighbours.\
+--- If nil, the node does not exist on the border.
 ---@param id NodeID
 ---@return number|nil
 function NodeRange:getBorderWeight(id)

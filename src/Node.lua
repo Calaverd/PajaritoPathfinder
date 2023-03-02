@@ -9,6 +9,7 @@ local Directions = require "directions"
 ---@field tile number|string The tile value on the equivalent map
 ---@field position number[] A list for the position on [x,y,z]
 ---@field conections table The nodes that are neighbours to this one.
+---@field private is_tile_number boolean a value that stores the type of the tile
 local Node = {}
 
 local FLOOR = math.floor
@@ -23,8 +24,8 @@ local function isInRange(num,min,max)
 end
 
 --- Static helper function that takes the 
---- value of a position on the map and their
---- dimentions to create an id for that point
+--- value of a position on the map\
+--- and their dimentions to create an id for that point
 ---@param x_pos number
 ---@param y_pos number
 ---@param z_pos number
@@ -67,6 +68,20 @@ end
 ---@param direction integer
 function Node:makeOneWayLinkWith(node, direction)
     self.conections[direction] = node
+end
+
+--- Sets the value of the node tile and also
+--- check the type of it.
+---@param tile number|string
+function Node:setTile(tile)
+    self.tile = tile
+    self.is_tile_number = type(tile) == "number"
+end
+
+---Returns if the tile is of type number
+---@return boolean
+function Node:isTileNumber()
+    return self.is_tile_number
 end
 
 --- Connect this node to another and

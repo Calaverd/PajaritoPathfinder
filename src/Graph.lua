@@ -86,7 +86,7 @@ function Graph:buildFrom2DMap(map_2d)
         while map_2d[y][x] do
             local node_id = Node.getPointId(x, y, 0, width, height, 0)
             local node = Node:new(node_id, {x,y})
-            node.tile = map_2d[y][x]
+            node:setTile(map_2d[y][x])
             self:addNode(node)
             self:connectNodeToNeighbors(node,x,y,0,width,height,0)
             x = x+1
@@ -135,9 +135,27 @@ function Graph:listTableToMapId(position)
     return Node.getPointId(x or 0, y or 0, z or 0, width, height, depth)
 end
 
---- Check if there is posible to go from a connected
---- node to another. It returs false if the destiny
---- node is impassable terrain, or exist a wall in
+--- Returns the weight of this node in the current weight_map.\
+--- If the node is not in the weight_map,
+--- returns the tile of the node if is a number.\
+--- If the tile of the node is not a number, returns
+--- the weight as impassable
+---@param node Node
+---@return number
+function Graph:getNodeWeight(node)
+    if self.weight_map[node.tile] then
+        return self.weight_map[node.tile]
+    end
+    if node:isTileNumber() then
+        return node.tile --[[@as number]]
+    end
+    return 0
+end
+
+--- Check if there is posible to go
+--- from a connected node to another.\
+--- It returs false if the destiny node is
+--- impassable terrain, or exist a wall in
 --- between nodes.
 ---@param start Node
 ---@param destiny Node
@@ -145,7 +163,7 @@ end
 ---@return boolean way_is_posible
 function Graph:isWayPosible(start, destiny, direction)
     -- check if the destiny is impassable terrain.
-    if self.weight_map[destiny.tile] == 0 or destiny.tile == 0 then
+    if self:getNodeWeight(destiny) == 0 then
         return false
     end
     -- chek if there is a wall from start to destiny
@@ -181,8 +199,7 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
     if not start_node then
         return {}
     end
-    local start_weight =  0 --self.weight_map[start_node.tile] or start_node.tile
-
+    local start_weight =  0 -- self:getNodeWeight(start_node)
     local nodes_explored = {}
     local nodes_in_queue = {}
     local nodes_in_border = {}
@@ -205,7 +222,7 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
                 goto continue
             end
 
-            local node_weight = self.weight_map[node.tile] or node.tile
+            local node_weight = self:getNodeWeight(node)
             local accumulated_weight = node_weight+weight
             local is_way_posible = self:isWayPosible(current, node, direction)
             if  nodes_explored[node.id] == nil -- is not yet explored
