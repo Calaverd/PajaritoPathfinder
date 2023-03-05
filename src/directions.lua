@@ -2,6 +2,10 @@ local bitops = require 'bitops'
 local bor = bitops.bor;
 local band = bitops.band;
 
+-- An special direction to allow the\
+-- conection of nodes separated in space.
+local PORTAL = 0
+
 local NORTH = 256 -- Wall
 local NORTH_UP = 3
 local NORTH_LEFT = 5
@@ -33,6 +37,7 @@ local SOUTH_DOWN_RIGHT = 33
 
 ---@enum direction_names
 local direction_names = {
+    [0] = "PORTAL",
     [256] = "NORTH",
     [3] = "NORTH_UP",
     [5] = "NORTH_LEFT",
@@ -78,10 +83,21 @@ local Allowed_Walls = {
 
 --- A simple enum for the directions
 --- and their flips either using the
---- number or the string name
+--- number or the string name.
 ---@enum Allowed_Flips
 local Allowed_Flips = {
+    PORTAL = PORTAL,
+
     NORTH = SOUTH,
+    NORTH_UP = SOUTH_DOWN,
+    NORTH_LEFT = SOUTH_RIGHT,
+    NORTH_RIGHT = SOUTH_LEFT,
+    NORTH_DOWN = SOUTH_UP,
+    NORTH_UP_LEFT = SOUTH_DOWN_RIGHT,
+    NORTH_UP_RIGHT = SOUTH_DOWN_LEFT,
+    NORTH_DOWN_LEFT = SOUTH_UP_RIGHT,
+    NORTH_DOWN_RIGHT = SOUTH_UP_LEFT,
+
     LEFT = RIGHT,
     UP_LEFT = DOWN_RIGHT,
     UP = DOWN,
@@ -90,9 +106,27 @@ local Allowed_Flips = {
     DOWN_RIGHT = UP_LEFT,
     DOWN = UP,
     DOWN_LEFT = UP_RIGHT,
-    SOUTH   = NORTH,
+
+    SOUTH = NORTH,
+    SOUTH_DOWN = NORTH_UP,
+    SOUTH_RIGHT = NORTH_LEFT,
+    SOUTH_LEFT = NORTH_RIGHT,
+    SOUTH_UP = NORTH_DOWN,
+    SOUTH_DOWN_RIGHT = NORTH_UP_LEFT,
+    SOUTH_DOWN_LEFT = NORTH_UP_RIGHT,
+    SOUTH_UP_RIGHT = NORTH_DOWN_LEFT,
+    SOUTH_UP_LEFT = NORTH_DOWN_RIGHT,
 
     [NORTH] = SOUTH,
+    [NORTH_UP] = SOUTH_DOWN,
+    [NORTH_LEFT] = SOUTH_RIGHT,
+    [NORTH_RIGHT] = SOUTH_LEFT,
+    [NORTH_DOWN] = SOUTH_UP,
+    [NORTH_UP_LEFT] = SOUTH_DOWN_RIGHT,
+    [NORTH_UP_RIGHT] = SOUTH_DOWN_LEFT,
+    [NORTH_DOWN_LEFT] = SOUTH_UP_RIGHT,
+    [NORTH_DOWN_RIGHT] = SOUTH_UP_LEFT,
+
     [LEFT] = RIGHT,
     [UP_LEFT] = DOWN_RIGHT,
     [UP] = DOWN,
@@ -101,7 +135,16 @@ local Allowed_Flips = {
     [DOWN_RIGHT] = UP_LEFT,
     [DOWN] = UP,
     [DOWN_LEFT] = UP_RIGHT,
+
     [SOUTH] = NORTH,
+    [SOUTH_UP] = NORTH_DOWN,
+    [SOUTH_LEFT] = NORTH_RIGHT,
+    [SOUTH_RIGHT] = NORTH_LEFT,
+    [SOUTH_DOWN] = NORTH_UP,
+    [SOUTH_UP_LEFT] = NORTH_DOWN_RIGHT,
+    [SOUTH_UP_RIGHT] = NORTH_DOWN_LEFT,
+    [SOUTH_DOWN_LEFT] = NORTH_UP_RIGHT,
+    [SOUTH_DOWN_RIGHT] = NORTH_UP_LEFT,
 }
 
 ---@enum VON_NEUMANN_NEIGHBORHOOD
@@ -144,7 +187,7 @@ local FULL_VON_NEUMANN_NEIGHBORHOOD = {
 return {
     --- All possible movements in a grid are defined here.
     movements = FULL_VON_NEUMANN_NEIGHBORHOOD,
-    
+
     names = direction_names,
     --- The sets of posible allowed directions to move that
     -- can be taken on the grid based on the grid tipe and move
