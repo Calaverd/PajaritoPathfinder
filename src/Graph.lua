@@ -7,14 +7,24 @@ local NodeRange = require "NodeRange";
 ---@diagnostic disable-next-line: deprecated
 local unpack = unpack or table.unpack
 
+-- TODO
+--- takes an object an returns a number to
+--- use as id.
+local function getObjectID(object)
+    if type(object) == 'table' then
+        return tonumber( tostring(object):gsub('table: 0x',''), 16)
+    end
+end
+
 --- A class for the representation of
 --- maps as Graph. \
 --- Is composed of nodes and allows for
---- operations on them.
+--- operations on them.s
 ---@class Graph
 ---@field node_map {numeber:Node} A list of all the nodes on this graph
 ---@field weight_map table<number,number> A map for the weight of tiles
 ---@field walls table<number, number> A map for node id and wall
+---@field objects { ObjectID:NodeID } A map for objects and their position usefull to handle entities that move around the map.
 ---@field settings table A map for that contains contextual info to build the graph
 local Graph = {}
 
@@ -28,6 +38,7 @@ function Graph:new(settings)
     obj.weight_map = {}
     obj.walls = {}
     obj.settings = settings
+    obj.objects = {}
 
     setmetatable(obj, self)
     self.__index = self
@@ -72,6 +83,36 @@ function Graph:connectNodeToNeighbors(new_node, x,y,z,width,height,deep)
             new_node:makeTwoWayLinkWith(neighbour, direction)
         end
     end
+end
+
+--- TODO
+--- Adds a new object.\
+--- Objects are entities that
+--- can move around the map
+---@param object table And object to add.
+---@param position number[] Position of the node were this object will be added.
+---@param groups ?string[] A set of custom groups see Graph:setObjectRules
+---@return ObjectID object_id
+function Graph:addObject(object, position, groups)
+    return 0
+end
+
+-- TODO
+--- Moves an object from their current position
+--- on the graph to a new one.\
+--- **This function does not cares to check
+--- if the new position is a valid one.**
+---@param object_to_move ObjectID|any -- the object to move itself or their id.
+---@param new_position number[]
+function Graph:translasteObject(object_to_move, new_position)
+    
+end
+
+-- TODO
+---Removes the object references in the graph
+---@param objects_to_remove ObjectID|any -- the object to delete itself or their id.
+function Graph:removeObject(objects_to_remove)
+    
 end
 
 ---Fills the node_map of the graph using the 

@@ -1,6 +1,7 @@
 local Directions = require "directions"
 
 ---@alias NodeID integer
+---@alias ObjectID integer
 
 --- A Node is an object that can be conected to
 --- other Nodes (neighbours). 
@@ -9,6 +10,7 @@ local Directions = require "directions"
 ---@field tile number|string The tile value on the equivalent map
 ---@field position number[] A list for the position on [x,y,z]
 ---@field conections table The nodes that are neighbours to this one.
+---@field objects {ObjectID:table}
 ---@field private is_tile_number boolean a value that stores the type of the tile
 local Node = {}
 
