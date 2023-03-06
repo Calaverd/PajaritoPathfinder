@@ -10,7 +10,7 @@ local Directions = require "directions"
 ---@field tile number|string The tile value on the equivalent map
 ---@field position number[] A list for the position on [x,y,z]
 ---@field conections table The nodes that are neighbours to this one.
----@field objects {ObjectID:table}
+---@field objects {ObjectID:boolean} a list of the objecs in this node.
 ---@field private is_tile_number boolean a value that stores the type of the tile
 local Node = {}
 
@@ -34,7 +34,7 @@ end
 ---@param width number
 ---@param height number
 ---@param depth number
----@return integer
+---@return NodeID
 function Node.getPointId(x_pos, y_pos, z_pos, width, height, depth)
     if not isInRange(y_pos,1,height)
         or not isInRange(x_pos,1,width) then
@@ -59,6 +59,7 @@ function Node:new(id, position)
     obj.tile = 0
     obj.position = position
     obj.conections = {}
+    obj.objects = {}
 
     setmetatable(obj, self)
     self.__index = self
@@ -112,6 +113,18 @@ end
 function Node:clearTwoWayLinkWith(node)
     self:clearOneWayLinkWith(node)
     node:clearOneWayLinkWith(self)
+end
+
+---Adds a object as belogin to this node
+---@param object_id ObjectID
+function Node:addObject(object_id)
+    self.objects[object_id] = true
+end
+
+---Removes an object from this node
+---@param object_id ObjectID
+function Node:removeObject(object_id)
+    self.objects[object_id] = nil
 end
 
 return Node

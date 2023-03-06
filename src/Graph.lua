@@ -7,13 +7,12 @@ local NodeRange = require "NodeRange";
 ---@diagnostic disable-next-line: deprecated
 local unpack = unpack or table.unpack
 
--- TODO
 --- takes an object an returns a number to
 --- use as id.
+---@param object table
+---@return ObjectID
 local function getObjectID(object)
-    if type(object) == 'table' then
-        return tonumber( tostring(object):gsub('table: 0x',''), 16)
-    end
+    return tonumber( tostring(object):gsub('table: 0x',''), 16)
 end
 
 --- A class for the representation of
@@ -85,34 +84,77 @@ function Graph:connectNodeToNeighbors(new_node, x,y,z,width,height,deep)
     end
 end
 
---- TODO
 --- Adds a new object.\
 --- Objects are entities that
---- can move around the map
+--- can move around the map\
+--- **This function does not cares to check
+--- if the new position is a valid one.**
 ---@param object table And object to add.
 ---@param position number[] Position of the node were this object will be added.
 ---@param groups ?string[] A set of custom groups see Graph:setObjectRules
 ---@return ObjectID object_id
 function Graph:addObject(object, position, groups)
-    return 0
+    local object_id = getObjectID(object)
+    local node_id = self:positionToMapId(position)
+    local node = self:getNode(node_id)
+    if node then
+        node:addObject(object_id)
+    end
+    self.objects[object_id] = node_id
+    return object_id
 end
 
--- TODO
 --- Moves an object from their current position
 --- on the graph to a new one.\
---- **This function does not cares to check
---- if the new position is a valid one.**
----@param object_to_move ObjectID|any -- the object to move itself or their id.
+---@param object_to_move ObjectID|table -- the object to move itself or their id.
 ---@param new_position number[]
+---@return boolean result if the translation could be fullfiled
 function Graph:translasteObject(object_to_move, new_position)
-    
+    local old_node = nil
+    local object_id = object_to_move --[[@as ObjectID]]
+    if self.objects[object_to_move] then
+        print('given ObjectID')
+        old_node = self:getNode(self.objects[object_to_move])
+    else
+        object_id = getObjectID(object_to_move --[[@as table]])
+        if self.objects[object_id] then
+            print('given as table')
+            old_node = self:getNode(self.objects[object_to_move])
+        else
+            return false
+        end
+    end
+    local new_node = self:getNode(self:positionToMapId(new_position))
+    if old_node then
+        print('old node is '..old_node.id)
+        old_node:removeObject(object_id)
+    end
+    if new_node then
+        print('new node is '..new_node.id)
+        new_node:addObject(object_id)
+        self.objects[object_id] = new_node.id
+        return true
+    end
+    return false
 end
 
--- TODO
 ---Removes the object references in the graph
----@param objects_to_remove ObjectID|any -- the object to delete itself or their id.
-function Graph:removeObject(objects_to_remove)
-    
+---@param object_to_remove ObjectID|any -- the object to delete itself or their id.
+function Graph:removeObject(object_to_remove)
+    local old_node = nil
+    local object_id = object_to_remove --[[@as ObjectID]]
+    if self.objects[object_to_remove] then
+        old_node = self:getNode(self.objects[object_to_remove])
+    else
+        object_id = getObjectID(object_to_remove --[[@as table]])
+        if self.objects[object_id] then
+            old_node = self:getNode(self.objects[object_to_remove])
+        end
+    end
+    if old_node then
+        old_node:removeObject(object_id)
+    end
+    self.objects[object_id] = nil
 end
 
 ---Fills the node_map of the graph using the 
@@ -163,8 +205,8 @@ end
 --- The ID is constructed based on the graph's settings
 --- (dimensions of the map). Returns the node ID.
 ---@param position number[] The position with the x, y, and z coordinates packed.
----@return number id corresponding to the given position in the graph's map.
-function Graph:listTableToMapId(position)
+---@return NodeID id corresponding to the given position in the graph's map.
+function Graph:positionToMapId(position)
     local width = 0
     local height = 0
     local depth = 0
@@ -191,6 +233,11 @@ function Graph:getNodeWeight(node)
         return node.tile --[[@as number]]
     end
     return 0
+end
+
+--TODO implement this function
+function Graph:isNotBlokedByObject(node_id, collition_groups)
+    return true
 end
 
 --- Check if there is posible to go
@@ -234,9 +281,10 @@ end
 ---@param start number[] Starting point
 ---@param max_cost number max cost of the paths contained
 ---@param type_movement? string manhattan or diagonal
+---@param collition_groups ?string[] a list of object groups to consider as impassable terrain
 ---@return NodeRange range
-function Graph:constructNodeRange(start, max_cost, type_movement)
-    local start_node = self:getNode( self:listTableToMapId(start) )
+function Graph:constructNodeRange(start, max_cost, type_movement, collition_groups)
+    local start_node = self:getNode( self:positionToMapId(start) )
     if not start_node then
         return {}
     end
@@ -263,14 +311,18 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
                 goto continue
             end
 
+            local node_id = node.id
             local node_weight = self:getNodeWeight(node)
             local accumulated_weight = node_weight+weight
             local is_way_posible = self:isWayPosible(current, node, direction)
-            if  nodes_explored[node.id] == nil -- is not yet explored
-                and nodes_in_queue[node.id] == nil -- is not yet in queue
+            local is_not_bloked_by_object = self:isNotBlokedByObject(node_id)
+            if  nodes_explored[node_id] == nil -- is not yet explored
+                and nodes_in_queue[node_id] == nil -- is not yet in queue
                 then
-                if is_way_posible and not (max_cost <= accumulated_weight)  then -- is not beyond range
-                    nodes_in_queue[node.id] = accumulated_weight
+                if is_way_posible and
+                    is_not_bloked_by_object and
+                    not (max_cost <= accumulated_weight)  then -- is not beyond range
+                    nodes_in_queue[node_id] = accumulated_weight
                     --- We save to the queue the node and their acumulated weight
                     node_queue:push({node, accumulated_weight})
                 else
@@ -278,7 +330,7 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
                     if not is_way_posible then
                         border_weight = -1
                     end
-                    nodes_in_border[node.id] = border_weight
+                    nodes_in_border[node_id] = border_weight
                 end
             end
 
@@ -307,6 +359,7 @@ function Graph:constructNodeRange(start, max_cost, type_movement)
     })
     return range
 end
+
 --[[
 local graph1 = Graph:new({
     type = '2D',
@@ -346,5 +399,17 @@ for steep, node in path:getNodes() do
     local x,y = unpack(node.position)
     print(''..steep..' , ('..x..', '..y..')')
 end
+
+local player = { test = 0 }
+player.id = graph1:addObject(player, {1,1})
+for key,value in pairs(player) do
+    print(key..': '..tostring(value))
+end
+print('On node '..tostring(graph1.objects[player.id]))
+graph1:translasteObject(player, {3,3})
+print('Now is on node '..tostring(graph1.objects[player.id]))
+graph1:translasteObject(player.id, {1,3})
+print('Now is on node '..tostring(graph1.objects[player.id]))
 --]]
+
 return Graph
