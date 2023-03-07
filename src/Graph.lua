@@ -24,6 +24,7 @@ end
 ---@field weight_map table<number,number> A map for the weight of tiles
 ---@field walls table<number, number> A map for node id and wall
 ---@field objects { ObjectID:NodeID } A map for objects and their position usefull to handle entities that move around the map.
+---@field object_groups { string:{ObjectID:boolean} } to store the groups of the objects
 ---@field settings table A map for that contains contextual info to build the graph
 local Graph = {}
 
@@ -38,6 +39,7 @@ function Graph:new(settings)
     obj.walls = {}
     obj.settings = settings
     obj.objects = {}
+    obj.object_groups = {}
 
     setmetatable(obj, self)
     self.__index = self
@@ -91,7 +93,7 @@ end
 --- if the new position is a valid one.**
 ---@param object table And object to add.
 ---@param position number[] Position of the node were this object will be added.
----@param groups ?string[] A set of custom groups see Graph:setObjectRules
+---@param groups ?string[] A set of custom groups to the ones this object bellows see Graph:setObjectRules
 ---@return ObjectID object_id
 function Graph:addObject(object, position, groups)
     local object_id = getObjectID(object)
@@ -101,6 +103,15 @@ function Graph:addObject(object, position, groups)
         node:addObject(object_id)
     end
     self.objects[object_id] = node_id
+
+    if groups then
+        for _, group in ipairs(groups) do
+            if not self.object_groups[group] then
+                self.object_groups[group] = {}
+            end
+            self.object_groups[group][object_id] = true;
+        end
+    end
     return object_id
 end
 
@@ -153,6 +164,11 @@ function Graph:removeObject(object_to_remove)
     end
     if old_node then
         old_node:removeObject(object_id)
+    end
+    for _, group in pairs(self.object_groups) do
+        if self.object_groups[group][object_id] then
+            self.object_groups[group][object_id] = nil
+        end
     end
     self.objects[object_id] = nil
 end
@@ -235,8 +251,24 @@ function Graph:getNodeWeight(node)
     return 0
 end
 
---TODO implement this function
-function Graph:isNotBlokedByObject(node_id, collition_groups)
+--- Do a check against the objects in the node.
+--- and if one is on the collition groups, then
+--- the node is considered bloked.
+---@param node Node
+---@param collition_groups ?string[]
+---@return boolean
+function Graph:isNotBlokedByObject(node, collition_groups)
+    if not collition_groups then
+        return true
+    end
+    for object_id,_ in pairs(node.objects) do
+        for _, group in ipairs(collition_groups) do
+            if self.object_groups[group][object_id] then
+                print('Can not pass, there is an enemy...')
+                return false
+            end
+        end
+    end
     return true
 end
 
@@ -305,7 +337,7 @@ function Graph:constructNodeRange(start, max_cost, type_movement, collition_grou
         nodes_in_queue[current.id] = nil;
 
         for _,direction in ipairs( allowed_directions ) do
-            local node = current.conections[direction]
+            local node = current.conections[direction] --[[@as Node]]
 
             if not node then
                 goto continue
@@ -315,7 +347,7 @@ function Graph:constructNodeRange(start, max_cost, type_movement, collition_grou
             local node_weight = self:getNodeWeight(node)
             local accumulated_weight = node_weight+weight
             local is_way_posible = self:isWayPosible(current, node, direction)
-            local is_not_bloked_by_object = self:isNotBlokedByObject(node_id)
+            local is_not_bloked_by_object = self:isNotBlokedByObject(node, collition_groups)
             if  nodes_explored[node_id] == nil -- is not yet explored
                 and nodes_in_queue[node_id] == nil -- is not yet in queue
                 then
