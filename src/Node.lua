@@ -12,6 +12,7 @@ local Directions = require "directions"
 ---@field conections table The nodes that are neighbours to this one.
 ---@field objects {ObjectID:boolean} a list of the objecs in this node.
 ---@field private is_tile_number boolean a value that stores the type of the tile
+---@field private num_objects number the number of objecs in this node.
 local Node = {}
 
 local FLOOR = math.floor
@@ -60,6 +61,7 @@ function Node:new(id, position)
     obj.position = position
     obj.conections = {}
     obj.objects = {}
+    obj.num_objects = 0
 
     setmetatable(obj, self)
     self.__index = self
@@ -119,12 +121,29 @@ end
 ---@param object_id ObjectID
 function Node:addObject(object_id)
     self.objects[object_id] = true
+    self.num_objects = self.num_objects + 1
 end
 
 ---Removes an object from this node
 ---@param object_id ObjectID
 function Node:removeObject(object_id)
-    self.objects[object_id] = nil
+    if self.objects[object_id] then
+        self.objects[object_id] = nil
+        self.num_objects = self.num_objects - 1
+    end
+end
+
+--- Returns the number of objects in this node
+---@return number
+function Node:objectsSize()
+    return self.num_objects;
+end
+
+--- Returns if the objects list of this
+--- node is empty.
+---@return boolean true if empty
+function Node:hasObjects()
+    return self.num_objects > 0;
 end
 
 return Node

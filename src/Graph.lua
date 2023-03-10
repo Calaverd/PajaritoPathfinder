@@ -15,6 +15,8 @@ local function getObjectID(object)
     return tonumber( tostring(object):gsub('table: 0x',''), 16)
 end
 
+local Node_getPointId = Node.getPointId
+
 --- A class for the representation of
 --- maps as Graph. \
 --- Is composed of nodes and allows for
@@ -78,7 +80,7 @@ function Graph:connectNodeToNeighbors(new_node, x,y,z,width,height,deep)
     for _, direction in pairs( all_2d_directions ) do
         local move = Directions.movements[direction]
         local n_x, n_y, n_z = x+move.x, y+move.y, z+move.z
-        local neighbour_id = Node.getPointId(n_x, n_y, n_z, width, height, deep)
+        local neighbour_id = Node_getPointId(n_x, n_y, n_z, width, height, deep)
         local neighbour = self:getNode(neighbour_id)
         if neighbour then
             new_node:makeTwoWayLinkWith(neighbour, direction)
@@ -183,7 +185,7 @@ function Graph:buildFrom2DMap(map_2d)
     while map_2d[y] do
         local x = 1
         while map_2d[y][x] do
-            local node_id = Node.getPointId(x, y, 0, width, height, 0)
+            local node_id = Node_getPointId(x, y, 0, width, height, 0)
             local node = Node:new(node_id, {x,y})
             node:setTile(map_2d[y][x])
             self:addNode(node)
@@ -231,7 +233,7 @@ function Graph:positionToMapId(position)
         width = #self.settings.map[1]
     end
     local x,y,z = unpack(position)
-    return Node.getPointId(x or 0, y or 0, z or 0, width, height, depth)
+    return Node_getPointId(x or 0, y or 0, z or 0, width, height, depth)
 end
 
 --- Returns the weight of this node in the current weight_map.\
@@ -258,13 +260,13 @@ end
 ---@param collition_groups ?string[]
 ---@return boolean
 function Graph:isNotBlokedByObject(node, collition_groups)
-    if not collition_groups then
+    if not collition_groups or not Node:hasObjects() then
         return true
     end
     for object_id,_ in pairs(node.objects) do
         for _, group in ipairs(collition_groups) do
+            -- the object in the node is in the group?
             if self.object_groups[group][object_id] then
-                print('Can not pass, there is an enemy...')
                 return false
             end
         end
