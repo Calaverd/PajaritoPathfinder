@@ -1,4 +1,4 @@
-local PajaritoGraph = require 'Graph'
+local Pajarito = require 'src'
 
 local tile_map = {
     { 1, 3, 2, 3, 1, 1, 1 },
@@ -21,7 +21,7 @@ table_of_weights[2] = 3  --woods    tile 2 -> 3
 table_of_weights[3] = 0  --mountain tile 3 -> 0  
 
 --set the map
-local pajarito = PajaritoGraph:new({type = '2D', map = tile_map, weights = table_of_weights})
+local pajarito = Pajarito.Graph:new({type = '2D', map = tile_map, weights = table_of_weights})
 pajarito:build()
 
 local range = pajarito:constructNodeRange({4,4},15)
@@ -44,7 +44,7 @@ while y <= tile_map_height do
             io.write(' +')
         end
     elseif range:borderHasPoint({x,y}) then
-        local id = range:borderHasPoint({x,y}) or 0
+        local id = range:borderHasPoint({x,y}) or 0 --[[@as integer]]
         local border_weight = range:getBorderWeight(id)
         if border_weight and border_weight > 0 then
             io.write(' *') -- is pasable

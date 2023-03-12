@@ -1,7 +1,7 @@
-local Directions = require "directions"
-local Heap = require "heap";
-local Node = require "Node";
-local NodeRange = require "NodeRange";
+local Directions = require "src.directions"
+local Heap = require "src.heap";
+local Node = require "src.Node";
+local NodeRange = require "src.NodeRange";
 
 
 ---@diagnostic disable-next-line: deprecated
@@ -18,7 +18,7 @@ end
 local Node_getPointId = Node.getPointId
 
 --- A class for the representation of
---- maps as Graph. \
+--- maps as a Graph. \
 --- Is composed of nodes and allows for
 --- operations on them.s
 ---@class Graph

@@ -1,4 +1,4 @@
-local Directions = require "directions"
+local Directions = require "src.directions"
 
 ---@alias NodeID integer
 ---@alias ObjectID integer

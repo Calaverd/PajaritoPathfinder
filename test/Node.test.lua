@@ -1,4 +1,4 @@
---- Heap test
+--- Node test
 ---@diagnostic disable: undefined-global
 require 'busted.runner'()
 package.path = package.path .. ";../src/?.lua"
@@ -65,13 +65,13 @@ describe("Node test", function()
     node_a:addObject(1)
     node_a:addObject(2)
     node_a:addObject(3)
-    
+
     assert.is_true(node_a.objects[1])
     assert.is_true(node_a.objects[2])
     assert.is_true(node_a.objects[3])
     assert.are.equal(node_a:objectsSize(), 3 )
     assert.is_true(node_a:hasObjects())
-    
+
     node_a:removeObject(1)
 
     assert.is.falsy(node_a.objects[1])
@@ -85,13 +85,11 @@ describe("Node test", function()
 
     node_a:removeObject(2)
     node_a:removeObject(3)
-    
+
     assert.is.falsy(node_a.objects[2])
     assert.is.falsy(node_a.objects[3])
     assert.are.equal(node_a:objectsSize(), 0 )
     assert.is.falsy(node_a:hasObjects())
   end)
-
-
 
 end)

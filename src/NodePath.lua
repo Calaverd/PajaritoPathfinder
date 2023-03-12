@@ -1,4 +1,4 @@
-local Node = require "Node"
+local Node = require "src.Node"
 
 --- A class that contains the necessary nodes
 --- to follow in order to traverse from a node to another.

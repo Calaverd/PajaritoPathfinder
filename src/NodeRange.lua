@@ -1,6 +1,6 @@
-local Node = require "Node"
-local NodePath = require "NodePath"
-local Directions = require "directions"
+local Node = require "src.Node"
+local NodePath = require "src.NodePath"
+local Directions = require "src.directions"
 
 --- Contains a set of nodes that represent the
 --- maximum extend of movement within a given range
