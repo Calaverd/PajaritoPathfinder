@@ -6,10 +6,11 @@ Pajarito main features are:
 
 * Get a list of all the possible position points with a given movement range, and their path cost.
 * Terrain weight constraints.
+* Working with walls on edges.
 * Get _any_ possible path inside a movement range upon request.
 * Also a standard A* Pathfinder (Aka, a straight request of a path from point A to point B) 
 
-Pajarito is *not framework related*,  and can be used on any Lua project. Although if your main goal is speed on a uniform cost grid, try [Jumper](https://github.com/Yonaba/Jumper)
+Pajarito is *not framework related*, and can be used on any Lua project. Although if your main goal is speed on a uniform cost grid, try [Jumper](https://github.com/Yonaba/Jumper)
 
 - [Example](#Example)
 - [Basic API and Usage](#basic-api-and-usage)
@@ -28,77 +29,87 @@ Pajarito is *not framework related*,  and can be used on any Lua project. Althou
        + [Get the weight of a point on the grid](#get-the-weight-of-a-point-on-the-grid)
 - [License](#License)
 <!--      + [Sub-sub-heading](#sub-sub-heading)-->
-    
+
 ## Example
 
 Consider the following map:
 
 ![map](/img/map.png)
 
+And this sample code to find a path.
 
 ```lua
-local pajarito = require 'pajarito'
+local Pajarito = require 'pajarito'
 
-tile_map = { { 1, 3, 2, 3, 1, 1, 1 }, 
-             { 1, 3, 2, 2, 2, 1, 1 }, 
-             { 2, 1, 1, 2, 2, 1, 1 }, 
-             { 1, 2, 3, 1, 1, 3, 3 }, 
-             { 1, 2, 2, 2, 1, 3, 2 },
-             { 1, 1, 1, 3, 3, 3, 2 },
-             { 1, 1, 2, 2, 2, 3, 2 } }
+local tile_map = {
+    { 1, 3, 2, 3, 1, 1, 1 },
+    { 1, 3, 2, 2, 2, 1, 1 },
+    { 2, 1, 1, 2, 2, 1, 1 },
+    { 1, 2, 3, 1, 1, 3, 3 },
+    { 1, 2, 2, 2, 1, 3, 2 },
+    { 1, 1, 1, 3, 3, 3, 2 },
+    { 1, 1, 2, 2, 2, 3, 2 }
+  }
 
-tile_map_width = #tile_map[1]
-tile_map_height = #tile_map
+local tile_map_width = #tile_map[1]
+local tile_map_height = #tile_map
 
---Define a table of weights and the default weights cost
---note, values equal or less than 0, are considered impassable terrain
+-- Define a table of weights and the default weights cost
+-- Note: values equal or less than 0, are considered impassable terrain
 local table_of_weights = {}
 table_of_weights[1] = 1  --grass    tile 1 -> 1
-table_of_weights[2] = 3  --dessert  tile 2 -> 3
+table_of_weights[2] = 3  --sand     tile 2 -> 3
 table_of_weights[3] = 0  --mountain tile 3 -> 0  
 
---set the map
-pajarito.init(tile_map, tile_map_width, tile_map_height)
+-- Set the map using a table with the settings...
+local map_graph = Pajarito.Graph:new{ type= '2D', map= tile_map, weights= table_of_weights}
 
---set the weights
-pajarito.setWeigthTable(table_of_weights)
+-- ...and construct a node structure using the settings.
+map_graph:build()
 
---[[
-build a set of nodes that comprend the set of all the posible
-movement range of  starting from the point (x:4,y:4)
-]]
-pajarito.buildRange(4,4,15) 
 
---[[
-Build a list of nodes that form the path.
-this build list will be used for pajarito to look up other
-requests on the path
-]]
-local found_path = nil
-if pajarito.buildInRangePathTo(1,1) then
-    found_path = pajarito.getFoundPath()
-end
+-- Build a range of nodes. It will be the set of all possible
+-- movements starting from the point (x:4,y:4) within
+-- the range cost of 15
+-- We can use this range to get all possible paths from
+-- the starting point to any other node in it.
+local range = map_graph:constructNodeRange({4,4},15)
 
--- Print the Output 
+
+-- From the nodes in the range, now can be build a list
+-- of nodes for the path from the starting point of the
+-- range in (x:4, y:4) to (x:1, y:1)
+local found_path = range:getPathTo({1,1})
+
+-- Print the Output
 local x = 1
 local y = 1
 while y <= tile_map_height do
   x=1
   while x <= tile_map_width do
-    if pajarito.isPointInRange(x,y) then --is inside the area
-        if pajarito.isPointInFoundPath(x,y) then
-            if x ==4 and y == 4 then
-                io.write(" @") --start point
+    -- Check if this point is in the range.
+    if range:hasPoint({x,y}) then
+        if found_path:hasPoint({x,y}) then
+            if x == 4 and y == 4 then
+                io.write(" @") -- start point
+            elseif x == 1 and y == 1 then
+                io.write(" X") -- destiny point
             else
-                io.write(" 0")
+                io.write(" o") -- is path
             end
-        else
-            io.write(' +')
+        else -- is whitin the range but not in the path
+            io.write(' -') 
         end
-    elseif pajarito.isPointInRangeBorder(x,y) then
-            io.write(' ?')
-    else
-        io.write(' _')
+    elseif range:borderHasPoint({x,y}) then
+        local id = range:borderHasPoint({x,y}) or 0 --[[@as integer]]
+        local border_weight = range:getBorderWeight(id)
+        if border_weight and border_weight > 0 then
+            io.write(' *') -- is pasable
+        else
+            io.write(' #') -- is impassable
+        end
+    else -- Is outside the range, aka unexplored.
+        io.write(' ?')
     end
     x=x+1
   end
@@ -106,31 +117,34 @@ while y <= tile_map_height do
   y=y+1
 end
 
-if found_path then
-    local path_details = ('(x: %2d, y: %2d) | Seep %2d | Movement: %2d | Grid value Cost: %2d ')
-    for key,node in ipairs(found_path) do
-        print(path_details:format(node.x, node.y, key, node.d, pajarito.getWeightAt(node.x,node.y)))
-    end
+-- Get more info about the path.
+print(' Steep |    Position    | Cost of Movement | Grid Weight ')
+local detail = '  %2d   | (x: %2d, y: %2d) |        %2d        |     %2d'
+local unpack = unpack or table.unpack
+for steep,node in found_path:getNodes()  do
+    x, y = unpack(node.position)
+    print(detail:format(steep, x, y, range:getReachCostAt(node.id), map_graph:getNodeWeight(node) ))
 end
 ```
 
 The above code generates the following output
 
 ```
- 0 ? + ? + + +
- 0 ? + + + + +
- 0 0 0 0 + + +
- + + ? @ + ? ?
- + + + + + ? _
- + + + ? ? _ _
- + + + + ? _ _
-(x:  4, y:  4) | Seep  1 | Movement:  1 | Grid value Cost:  1 
-(x:  4, y:  3) | Seep  2 | Movement:  4 | Grid value Cost:  3 
-(x:  3, y:  3) | Seep  3 | Movement:  5 | Grid value Cost:  1 
-(x:  2, y:  3) | Seep  4 | Movement:  6 | Grid value Cost:  1 
-(x:  1, y:  3) | Seep  5 | Movement:  9 | Grid value Cost:  3 
-(x:  1, y:  2) | Seep  6 | Movement: 10 | Grid value Cost:  1 
-(x:  1, y:  1) | Seep  7 | Movement: 11 | Grid value Cost:  1 
+ X # - # - - -
+ o # - - - - -
+ o o o o - - -
+ - - # @ - # #
+ - - - - - # ?
+ - - - # # ? ?
+ - - - - * ? ?
+ Steep |    Position    | Cost of Movement | Grid Weight
+   1   | (x:  4, y:  4) |         0        |      1
+   2   | (x:  4, y:  3) |         3        |      3
+   3   | (x:  3, y:  3) |         4        |      1
+   4   | (x:  2, y:  3) |         5        |      1
+   5   | (x:  1, y:  3) |         8        |      3
+   6   | (x:  1, y:  2) |         9        |      1
+   7   | (x:  1, y:  1) |        10        |      1
 
 ```
 
