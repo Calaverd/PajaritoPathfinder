@@ -1,7 +1,7 @@
-local Directions = require "src.directions"
-local Heap = require "src.heap";
-local Node = require "src.Node";
-local NodeRange = require "src.NodeRange";
+local Directions = require "pajarito.directions"
+local Heap = require "pajarito.heap";
+local Node = require "pajarito.Node";
+local NodeRange = require "pajarito.NodeRange";
 
 
 ---@diagnostic disable-next-line: deprecated
@@ -20,7 +20,7 @@ local Node_getPointId = Node.getPointId
 --- A class for the representation of
 --- maps as a Graph. \
 --- Is composed of nodes and allows for
---- operations on them.s
+--- operations on them
 ---@class Graph
 ---@field node_map {numeber:Node} A list of all the nodes on this graph
 ---@field weight_map table<number,number> A map for the weight of tiles

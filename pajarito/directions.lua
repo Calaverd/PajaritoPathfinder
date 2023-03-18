@@ -1,4 +1,4 @@
-local bitops = require 'src.bitops'
+local bitops = require 'pajarito.bitops'
 local bor = bitops.bor;
 local band = bitops.band;
 

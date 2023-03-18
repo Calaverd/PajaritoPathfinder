@@ -1,4 +1,4 @@
-local Node = require "src.Node"
+local Node = require "pajarito.Node"
 
 --- A class that contains the necessary nodes
 --- to follow in order to traverse from a node to another.

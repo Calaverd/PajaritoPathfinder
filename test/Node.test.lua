@@ -10,7 +10,7 @@ describe("Node test", function()
   local UP_LEFT = 2
 
   before_each( function()
-    local Node = require("Node")
+    local Node = require("pajarito.Node")
     node_a = Node:new(1,{1,1})
     node_b = Node:new(2,{2,2})
   end )

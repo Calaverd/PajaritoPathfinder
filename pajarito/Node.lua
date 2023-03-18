@@ -1,4 +1,4 @@
-local Directions = require "src.directions"
+local Directions = require "pajarito.directions"
 
 ---@alias NodeID integer
 ---@alias ObjectID integer

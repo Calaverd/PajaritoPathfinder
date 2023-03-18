@@ -1,6 +1,6 @@
-local Node = require "src.Node"
-local NodePath = require "src.NodePath"
-local Directions = require "src.directions"
+local Node = require "pajarito.Node"
+local NodePath = require "pajarito.NodePath"
+local Directions = require "pajarito.directions"
 
 --- Contains a set of nodes that represent the
 --- maximum extend of movement within a given range

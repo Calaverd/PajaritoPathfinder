@@ -8,7 +8,7 @@ describe("Bit operations test", function()
     local bor
 
     setup( function()
-      local bitops = require("bitops")
+      local bitops = require("pajarito.bitops")
       band = bitops.band
       bor = bitops.bor
     end )

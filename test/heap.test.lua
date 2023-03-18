@@ -7,7 +7,7 @@ describe("Heap test", function()
   local myHeap
 
   setup( function()
-    local Heap = require("heap")
+    local Heap = require("pajarito.heap")
     myHeap = Heap:new();
   end )
   after_each(function()
