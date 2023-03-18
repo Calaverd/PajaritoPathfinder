@@ -2,7 +2,7 @@
 luac.out
 
 # luarocks build files
-*.src.rock
+*.pajarito.rock
 *.zip
 *.tar.gz
 
