@@ -102,6 +102,27 @@ function NodeRange:getNode(node_id)
     return self.graphGetNode(node_id)
 end
 
+--- Returns a list of all the nodes in the range
+---@return table<number,Node>
+function NodeRange:getAllNodes()
+    local nodes = {}
+    for node_id,_ in pairs(self.node_traversal_weights) do
+        nodes[#nodes+1] = self:getNode(node_id)
+    end
+    return nodes
+end
+
+--- Returns a list with the nodes on the border.
+---@return table<number,Node>
+function NodeRange:getAllBoderNodes()
+    local nodes = {}
+    for _,node_id in pairs(self.border) do
+        nodes[#nodes+1] = self:getNode(node_id)
+    end
+    return nodes
+end
+
+
 --- Search if there is a path from the start node
 --- of the range to the destination.\
 --- Returns a NodePath that contains the nodes that form

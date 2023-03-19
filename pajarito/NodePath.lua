@@ -71,6 +71,14 @@ function NodePath:getLast()
     return self.node_list[#self.node_list]
 end
 
+--- Gets the node at a given steep.
+--- If there is no node in that steep, returns nil.
+---@param steep number
+---@return Node|nil
+function NodePath:getNodeAtSteep(steep)
+    return self.node_list[steep]
+end
+
 --- Custom iterator for the NodePath
 ---@return fun(): number|nil, Node|nil iterator
 function NodePath:getNodes()

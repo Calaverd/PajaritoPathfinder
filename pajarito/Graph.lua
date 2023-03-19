@@ -88,6 +88,19 @@ function Graph:connectNodeToNeighbors(new_node, x,y,z,width,height,deep)
     end
 end
 
+--- Sets the given table as the weight_map
+---@param new_weight_map table<number,number> 
+function Graph:setWeightMap(new_weight_map)
+    self.weight_map = new_weight_map
+end
+
+---@param point number[]
+---@return boolean
+function Graph:hasPoint(point)
+    local node_id = self:positionToMapId(point)
+    return self.node_map[node_id] ~= nil
+end
+
 --- Adds a new object.\
 --- Objects are entities that
 --- can move around the map\
