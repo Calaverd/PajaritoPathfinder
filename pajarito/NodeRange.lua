@@ -102,6 +102,10 @@ function NodeRange:getNode(node_id)
     return self.graphGetNode(node_id)
 end
 
+function NodeRange:getStartNode()
+    return self.graphGetNode(self.start_id)
+end
+
 --- Returns a list of all the nodes in the range
 ---@return table<number,Node>
 function NodeRange:getAllNodes()
