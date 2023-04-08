@@ -62,6 +62,18 @@ function Graph:addNode(node)
     self.node_map[node.id] = node;
 end
 
+--- Takes the postion of a node in the graph
+--- and updates their contained tile value.
+---@param position number[]
+---@param tile number|string
+function Graph:updateNodeTile(position, tile)
+    local id = self:positionToMapId(position)
+    local node = self:getNode(id)
+    if node then
+        node:setTile(tile)
+    end
+end
+
 --- Adds a node to the graph and conects
 --- it to their neighbourds if they exist
 --- or there is no wall between.\
