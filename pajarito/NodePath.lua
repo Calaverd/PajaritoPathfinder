@@ -5,7 +5,7 @@ local Node = require "pajarito.Node"
 ---@class NodePath
 ---@field node_list Node[] A list of the nodes in the path
 ---@field weight number The cost of traversing this path in the range.
----@field contains {NodeID:boolean} A map to check if the path has a node
+---@field contains {NodeID:number} A map to check if the path has a node, number is steep
 ---@field private width number width from the graph map
 ---@field private height number height from the graph map
 ---@field private depth number depth from the graph map
@@ -39,7 +39,8 @@ end
 ---Adds a node
 ---@param node Node
 function NodePath:addNode(node)
-    self.contains[node.id] = true
+    --read as: "contains this node at the steep..."
+    self.contains[node.id] = #self.node_list+1
     table.insert(self.node_list, 1, node)
 end
 
@@ -77,6 +78,46 @@ end
 ---@return Node|nil
 function NodePath:getNodeAtSteep(steep)
     return self.node_list[steep]
+end
+
+--- Returns in what steep this node is.
+--- If there is no node in the path, returs nil.
+---@param node Node
+---@return number|nil
+function NodePath:getStepAtNode(node)
+    return self.contains[node.id]
+end
+
+--- Returns the len of the path if it
+--- follows the given branch.
+---@param branch NodePath
+---@param bifurcation_point Node
+---@return number|nil len
+function NodePath:getIfMergedBranchLen(branch, bifurcation_point)
+    local branch_merge_node = branch:getLast()
+    if not branch_merge_node then
+        return nil
+    end
+    local branch_len = branch:getLen()
+
+    local len_at_merge_point = self:getLen()-self:getStepAtNode(bifurcation_point)
+    return branch_len+len_at_merge_point;
+end
+
+--- Adds the nodes of the branch to itself.
+--- Is based on the presumption that the branch
+--- starts where this path ends.
+---@param branch NodePath
+---@return NodePath
+function NodePath:Merge(branch)
+    self.weight = self.weight + branch.weight
+    local node_list = branch.node_list
+    local num = #node_list
+    while node_list[num] do
+        self:addNode(node_list[num])
+        num = num - 1
+    end
+    return self
 end
 
 --- Custom iterator for the NodePath
