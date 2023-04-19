@@ -104,7 +104,7 @@ end
 --- Remove and retrive the higher priority item.
 --  This function takes the item with higher priority on
 -- the heap, removes it, and then returns it.
--- returns nill if the heap is empty
+-- returns nil if the heap is empty
 --- @return any item
 function Heap:pop()
     --sawp first and last value
