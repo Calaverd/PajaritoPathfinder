@@ -113,6 +113,62 @@ function Graph:hasPoint(point)
     return self.node_map[node_id] ~= nil
 end
 
+
+local createWall = Directions.mergeDirections
+
+--- Adds a new wall in the given position with the
+--- given facing orientations.
+---@param position number[]
+---@param ... number|string
+function Graph:setWall(position, ...)
+    local id = self:positionToMapId(position)
+    self.walls[id] = createWall(...)
+end
+
+--- Returns the wall value at the given position.\
+--- Of there is no wall, returns nil
+---@param position number[]
+---@return number|nil
+function Graph:getWallAt(position)
+    local node_id = self:positionToMapId(position)
+    return self.walls[node_id]
+end
+
+---A helper function that sets the walls from a
+--- given list in the format { {position}, direction_a, direction_b, ... }
+---@param list_of_walls any[]
+function Graph:buildWalls(list_of_walls)
+    for _, wall in pairs(list_of_walls) do
+        local position = table.remove(wall,1)
+        self:setWall(position, unpack(wall) )
+    end
+end
+
+--- Deletes all the walls in the graph
+function Graph:clearWalls()
+    self.walls = {}
+end
+--- Custom iterator for the graph walls, it
+--- returns the position and the value.
+-- If the wall position is outside the graph,
+-- returns a list fill with -1
+---@return fun(): number[]|nil, number|nil iterator
+function Graph:iterWalls()
+    local node_id = nil
+    return function()
+        local wall_value
+        node_id, wall_value = next(self.walls, node_id)
+        if node_id then
+            local position = {-1,-1,-1}
+            local node = self:getNode(node_id)
+            if node then
+                position = node.position
+            end
+            return position, wall_value
+        end
+    end
+end
+
 --- Adds a new object.\
 --- Objects are entities that
 --- can move around the map\
@@ -284,19 +340,19 @@ end
 ---@param node Node
 ---@param collition_groups ?string[]
 ---@return boolean
-function Graph:isNotBlokedByObject(node, collition_groups)
-    if not collition_groups or not Node:hasObjects() then
-        return true
+function Graph:isBlokedByObject(node, collition_groups)
+    if not collition_groups or not node:hasObjects() then
+        return false
     end
     for object_id,_ in pairs(node.objects) do
         for _, group in ipairs(collition_groups) do
             -- the object in the node is in the group?
             if self.object_groups[group][object_id] then
-                return false
+                return true
             end
         end
     end
-    return true
+    return false
 end
 
 --- Check if there is posible to go
@@ -308,24 +364,19 @@ end
 ---@param destiny Node
 ---@param direction number
 ---@return boolean way_is_posible
-function Graph:isWayPosible(start, destiny, direction)
-    -- check if the destiny is impassable terrain.
-    if self:getNodeWeight(destiny) == 0 then
-        return false
-    end
+function Graph:isWallInTheWay(start, destiny, direction)
     -- chek if there is a wall from start to destiny
     local wall_in_start = self.walls[start.id]
-    if Directions.isWallFacingDirection(wall_in_start, direction) then
-        return false
-    end
     local wall_in_destiny = self.walls[destiny.id]
-    -- get the direction from destiny to start
-    local direction_2 = Directions.flip(direction)
-    -- chek if there is a wall from destiny to start
-    if Directions.isWallFacingDirection(wall_in_destiny, direction_2) then
-        return false
-    end
-    return true
+    local direction_2 = Directions.flip(direction) -- to the direction from destiny to start
+    return Directions.isWallFacingDirection(wall_in_start, direction)
+        or Directions.isWallFacingDirection(wall_in_destiny, direction_2)
+end
+
+
+function Graph:isImpassable(destiny)
+    -- check if the destiny is impassable terrain.
+    return self:getNodeWeight(destiny) == 0
 end
 
 --- Creates a range of nodes that contains all
@@ -373,20 +424,25 @@ function Graph:constructNodeRange(start, max_cost, type_movement, collition_grou
             local node_id = node.id
             local node_weight = self:getNodeWeight(node)
             local accumulated_weight = node_weight+weight
-            local is_way_posible = self:isWayPosible(current, node, direction)
-            local is_not_bloked_by_object = self:isNotBlokedByObject(node, collition_groups)
-            if  nodes_explored[node_id] == nil -- is not yet explored
-                and nodes_in_queue[node_id] == nil -- is not yet in queue
+            local is_beyond_range = (accumulated_weight > max_cost)
+            local is_way_possible =
+                 not self:isImpassable(node) and
+                 not self:isWallInTheWay(current, node, direction) and
+                 not self:isBlokedByObject(node, collition_groups)
+            if not nodes_explored[node_id] -- is not yet explored
+                and not nodes_in_queue[node_id] -- is not yet in queue
                 then
-                if is_way_posible and
-                    is_not_bloked_by_object and
-                    not (max_cost <= accumulated_weight)  then -- is not beyond range
+                if is_way_possible and not is_beyond_range then
                     nodes_in_queue[node_id] = accumulated_weight
                     --- We save to the queue the node and their acumulated weight
                     node_queue:push({node, accumulated_weight})
+                    
+                    -- clean the border if we marked it before
+                    -- (this case only happens if node was behind a wall)
+                    nodes_in_border[node_id] = nil
                 else
                     local border_weight = accumulated_weight
-                    if not is_way_posible then
+                    if not is_way_possible then
                         border_weight = -1
                     end
                     nodes_in_border[node_id] = border_weight
@@ -414,7 +470,9 @@ function Graph:constructNodeRange(start, max_cost, type_movement, collition_grou
         type_movement  = type_movement or "manhattan",
         width = width, height = height, depth = depth,
         map_type = self.settings.type,
-        graphGetNode = function (id) return self:getNode(id) end
+        graphGetNode = function (id) return self:getNode(id) end,
+        graphIsWallInTheWay = function (origin, destiny, direction)
+            return self:isWallInTheWay(origin, destiny, direction) end
     })
     return range
 end

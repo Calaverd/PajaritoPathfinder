@@ -1,3 +1,4 @@
+local Heap = require "pajarito.heap"
 local Node = require "pajarito.Node"
 local NodePath = require "pajarito.NodePath"
 local Directions = require "pajarito.directions"
@@ -12,6 +13,7 @@ local Directions = require "pajarito.directions"
 ---@field type_movement string what movement is used to build the range
 ---@field border {NodeID: number} map of Node id that contains the border nodes to this range.
 ---@field private graphGetNode fun(id:NodeID): Node|nil
+---@field private graphIsWallInTheWay fun(origin:Node,destiny:Node, direction:number): boolean
 ---@field private map_type string
 ---@field private width number width from the graph map
 ---@field private height number height from the graph map
@@ -147,6 +149,41 @@ function NodeRange:getAllBoderNodes()
     return nodes
 end
 
+--- Check if there is posible to go
+--- from a connected node to another.\
+--- It returs false if the destiny node is
+--- impassable terrain, or exist a wall in
+--- between nodes.
+---@param origin Node
+---@param destiny Node
+---@param direction number
+---@return boolean way_is_posible
+function NodeRange:isWallInTheWay(origin, destiny, direction)
+    return self.graphIsWallInTheWay(origin, destiny, direction)
+end
+
+---@diagnostic disable-next-line: deprecated
+local pow = math.pow
+if not pow then
+    pow = load("return function (a,b) return (a ^ b) end")()
+end
+
+--- Contruct a function specific to get the shortest
+--- distance for this use case.0
+---@param start_x number
+---@param start_y number
+---@param start_z? number
+---@return fun(a:Node, b:Node): boolean
+local function buildClosestDistanceCompareFunction(start_x, start_y, start_z)
+    return (function (node_a, node_b)
+        local ax,ay,az = unpack(node_a.position)
+        local bx,by,bz = unpack(node_b.position)
+        local distance_a = pow(ax-start_x,2) + pow(ay-start_y,2) + pow((az or 0)-(start_z or 0),2)
+        local distance_b = pow(bx-start_x,2) + pow(by-start_y,2) + pow((bz or 0)-(start_z or 0),2)
+        return distance_a < distance_b
+    end)
+end
+
 --- Search if there is a path from the start node
 --- of the range to the destination.\
 --- Returns a NodePath that contains the nodes.\
@@ -168,48 +205,59 @@ function NodeRange:getPathTo(destination, warranty_shortest_path)
     local traversal_weights = self.node_traversal_weights
     local current_node = self:getNode(destination_id --[[@as number]]) --[[@as Node]]
     local allowed_directions = Directions[self.map_type][self.type_movement] --[=[@as number[]]=]
+    local sx,sy,sz = unpack(self:getStartNodePosition() --[[@as number[] ]] )
+    local compareFun = buildClosestDistanceCompareFunction(sx, sy, sz)
 
     path:addNode(current_node)
     path.weight = traversal_weights[destination_id]
     while current_node.id ~= start_node_id do
         local best_node = nil
         local best_node_weight = 10000000
-        ---@type {number:Node[]}
+        ---@type {number:Heap}
         local nodes_by_weight = {}
         for _,direction in ipairs( allowed_directions ) do
             local node = current_node.conections[direction]
 
-            if not node or not traversal_weights[node.id] then
+            if not node or not traversal_weights[node.id]
+                or self:isWallInTheWay(current_node, node, direction) then
                 goto continue
             end
 
             local node_weight = traversal_weights[node.id]
             if node_weight < best_node_weight then
                 best_node_weight = node_weight
+                best_node = node
             end
+
+            -- We create a space to store the nodes that
+            -- are of the same weight
             if not nodes_by_weight[node_weight] then
-                nodes_by_weight[node_weight] = {}
+                nodes_by_weight[node_weight] = Heap:new()
+                nodes_by_weight[node_weight]:setCompare(compareFun)
             end
-            table.insert(nodes_by_weight[node_weight], 1, self:getNode(node.id))
+
+            nodes_by_weight[node_weight]:push(node)
 
             ::continue::
         end
 
-        if #nodes_by_weight[best_node_weight] == 0 then
+        if not best_node then
             print('Error, can not build path')
             return path
         end
 
-        if #nodes_by_weight[best_node_weight] > 1 then
-            -- There is more than one node that is a good option.
-            -- And for some reason you want to be ABSOLUTELY sure
-            -- to get the shortest path.
-            -- We are going to take the recursive rute T_T
+        -- There is more than one nodes that are a good option...
+        local heap_closest_nodes = nodes_by_weight[best_node_weight]
+        if heap_closest_nodes:getSize() > 1 then
             if warranty_shortest_path then
+                -- You want to be ABSOLUTELY sure to get the shortest path.
+                -- We are going to take the recursive rute, and check
+                -- which node leads to the path that is trully the shortest.
                 local bifurcation_point = current_node
                 local minimun_branch = path
                 local minimun_branch_len = 100000
-                for _, node in ipairs(nodes_by_weight[best_node_weight]) do
+                while heap_closest_nodes:getSize() > 0 do
+                    local node = heap_closest_nodes:pop()
                     local branch = self:getPathTo(node.position, warranty_shortest_path);
                     local branch_len = path:getIfMergedBranchLen(branch, bifurcation_point) or minimun_branch_len
                     if minimun_branch_len > branch_len then
@@ -219,20 +267,9 @@ function NodeRange:getPathTo(destination, warranty_shortest_path)
                 end
                 return path:Merge(minimun_branch)
             end
-
-            -- We do not deed that much 
-            local minimun_distace = 100000
-            for _, node in ipairs(nodes_by_weight[best_node_weight]) do
-                local sx,sy = unpack(self:getStartNodePosition() --[[@as number[] ]] )
-                local x, y = unpack(node.position)
-                local distance = math.abs(x-sx) + math.abs(y-sy)
-                if minimun_distace > distance then
-                    minimun_distace = distance
-                    best_node = node
-                end
-            end
-        else
-            best_node = nodes_by_weight[best_node_weight][1]
+            -- Or we can only use the closest to the starting point
+            -- (special thanks to zet23t for sugesting it in the love2d discord.)
+            best_node = heap_closest_nodes:pop()
         end
 
         current_node = best_node
