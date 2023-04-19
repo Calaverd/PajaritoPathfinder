@@ -122,7 +122,7 @@ end
 
 --- Custom iterator for the NodePath
 ---@return fun(): number|nil, Node|nil iterator
-function NodePath:getNodes()
+function NodePath:iterNodes()
     local i = 0
     local n = #self.node_list
     return function ()

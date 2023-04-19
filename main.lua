@@ -79,8 +79,9 @@ end
 -- Get more info about the path.
 print(' Steep |    Position    | Cost of Movement | Grid Weight ')
 local detail = '  %2d   | (x: %2d, y: %2d) |        %2d        |     %2d'
+---@diagnostic disable-next-line: deprecated
 local unpack = unpack or table.unpack
-for steep,node in found_path:getNodes()  do
+for steep,node in found_path:iterNodes()  do
     x, y = unpack(node.position)
     print(detail:format(steep, x, y, range:getReachCostAt(node.id), map_graph:getNodeWeight(node) ))
 end
