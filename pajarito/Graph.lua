@@ -25,7 +25,8 @@ local Node_getPointId = Node.getPointId
 ---@field node_map {numeber:Node} A list of all the nodes on this graph
 ---@field weight_map table<number,number> A map for the weight of tiles
 ---@field walls table<number, number> A map for node id and wall
----@field objects { ObjectID:NodeID } A map for objects and their position usefull to handle entities that move around the map.
+---@field objects { ObjectID:NodeID } A map to keep track of the position of objects usefull to handle entities that move around the map.
+---@field objects_ref {ObjectID:table} A map to get the object refrenced by the object_id
 ---@field object_groups { string:{ObjectID:boolean} } to store the groups of the objects
 ---@field settings table A map for that contains contextual info to build the graph
 local Graph = {}
@@ -41,6 +42,7 @@ function Graph:new(settings)
     obj.walls = {}
     obj.settings = settings
     obj.objects = {}
+    obj.objects_ref = {}
     obj.object_groups = {}
 
     setmetatable(obj, self)
@@ -172,6 +174,7 @@ end
 --- Adds a new object.\
 --- Objects are entities that
 --- can move around the map\
+--- Retruns a object_id to handle the object
 --- **This function does not cares to check
 --- if the new position is a valid one.**
 ---@param object table And object to add.
@@ -186,7 +189,7 @@ function Graph:addObject(object, position, groups)
         node:addObject(object_id)
     end
     self.objects[object_id] = node_id
-
+    self.objects_ref[object_id] = object
     if groups then
         for _, group in ipairs(groups) do
             if not self.object_groups[group] then
@@ -207,30 +210,43 @@ function Graph:translasteObject(object_to_move, new_position)
     local old_node = nil
     local object_id = object_to_move --[[@as ObjectID]]
     if self.objects[object_to_move] then
-        print('given ObjectID')
         old_node = self:getNode(self.objects[object_to_move])
     else
         object_id = getObjectID(object_to_move --[[@as table]])
         if self.objects[object_id] then
-            print('given as table')
-            old_node = self:getNode(self.objects[object_to_move])
+            old_node = self:getNode(self.objects[object_id])
         else
             return false
         end
     end
     local new_node = self:getNode(self:positionToMapId(new_position))
     if old_node then
-        print('old node is '..old_node.id)
         old_node:removeObject(object_id)
     end
     if new_node then
-        print('new node is '..new_node.id)
         new_node:addObject(object_id)
         self.objects[object_id] = new_node.id
         return true
     end
     return false
 end
+
+--- If exist one or more objects in a position
+--- returns a list with the objects, otherwise nil.
+---@param position number[]
+---@return table[] | nil
+function Graph:getObjectsAt(position)
+    local node = self:getNode(self:positionToMapId(position))
+    if node and node:hasObjects() then
+        local objects = {}
+        for object_id,_ in pairs(node.objects) do
+            objects[#objects+1] = self.objects_ref[object_id]
+        end
+        return objects
+    end
+    return nil
+end
+
 
 ---Removes the object references in the graph
 ---@param object_to_remove ObjectID|any -- the object to delete itself or their id.
@@ -254,6 +270,7 @@ function Graph:removeObject(object_to_remove)
         end
     end
     self.objects[object_id] = nil
+    self.objects_ref[object_id] = nil
 end
 
 ---Fills the node_map of the graph using the 
@@ -347,7 +364,8 @@ function Graph:isBlokedByObject(node, collition_groups)
     for object_id,_ in pairs(node.objects) do
         for _, group in ipairs(collition_groups) do
             -- the object in the node is in the group?
-            if self.object_groups[group][object_id] then
+            if self.object_groups[group] and
+                self.object_groups[group][object_id] then
                 return true
             end
         end
@@ -476,57 +494,5 @@ function Graph:constructNodeRange(start, max_cost, type_movement, collition_grou
     })
     return range
 end
-
---[[
-local graph1 = Graph:new({
-    type = '2D',
-    map = {
-        {1,1,0},
-        {1,0,1},
-        {1,1,1}
-      },
-});
-graph1:build();
-print('Number of created nodes '..tostring(#graph1.node_map))
-local center_node = graph1:getNode(5);
-print('Center node conects to: ')
-if center_node then
-    for direction, node in pairs(center_node.conections) do
-        print(' node '..node.id..' at '..Directions.names[direction])
-    end
-end
-local node_range = graph1:constructNodeRange({1,1},5)
-print('Nodes in range strating at x:1,y:1 = ')
-print(' start node id: '..node_range.start_id)
-print(' traverse type: '..node_range.type_movement)
-for node_id,weight in pairs(node_range.node_traversal_weights) do
-    local x,y = unpack(graph1:getNode(node_id).position)
-    print(' node '..' ('..x..', '..y..')'..' -> weight: '..weight)
-end
-print('find path from [1,1] to [3,3]')
-local path = node_range:getPathTo({3,3})
-for steep, node in ipairs(path.node_list) do
-    local x,y = unpack(node.position)
-    print(''..steep..' , ('..x..', '..y..')')
-end
-
-print('Using a custom iterator')
-print('Path weight is: '..path.weight)
-for steep, node in path:getNodes() do
-    local x,y = unpack(node.position)
-    print(''..steep..' , ('..x..', '..y..')')
-end
-
-local player = { test = 0 }
-player.id = graph1:addObject(player, {1,1})
-for key,value in pairs(player) do
-    print(key..': '..tostring(value))
-end
-print('On node '..tostring(graph1.objects[player.id]))
-graph1:translasteObject(player, {3,3})
-print('Now is on node '..tostring(graph1.objects[player.id]))
-graph1:translasteObject(player.id, {1,3})
-print('Now is on node '..tostring(graph1.objects[player.id]))
---]]
 
 return Graph
