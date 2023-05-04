@@ -2,6 +2,8 @@ local Heap = require "pajarito.heap"
 local Node = require "pajarito.Node"
 local NodePath = require "pajarito.NodePath"
 local Directions = require "pajarito.directions"
+local mathops = require "pajarito.mathops"
+local pow = mathops.pow
 
 --- Contains a set of nodes that represent the
 --- maximum extend of movement within a given range
@@ -149,24 +151,6 @@ function NodeRange:getAllBoderNodes()
     return nodes
 end
 
---- Check if there is posible to go
---- from a connected node to another.\
---- It returs false if the destiny node is
---- impassable terrain, or exist a wall in
---- between nodes.
----@param origin Node
----@param destiny Node
----@param direction number
----@return boolean way_is_posible
-function NodeRange:isWallInTheWay(origin, destiny, direction)
-    return self.graphIsWallInTheWay(origin, destiny, direction)
-end
-
----@diagnostic disable-next-line: deprecated
-local pow = math.pow
-if not pow then
-    pow = load("return function (a,b) return (a ^ b) end")()
-end
 
 --- Contruct a function specific to get the shortest
 --- distance for this use case.0
@@ -182,6 +166,19 @@ local function buildClosestDistanceCompareFunction(start_x, start_y, start_z)
         local distance_b = pow(bx-start_x,2) + pow(by-start_y,2) + pow((bz or 0)-(start_z or 0),2)
         return distance_a < distance_b
     end)
+end
+
+--- Check if there is posible to go
+--- from a connected node to another.\
+--- It returs false if the destiny node is
+--- impassable terrain, or exist a wall in
+--- between nodes.
+---@param origin Node
+---@param destiny Node
+---@param direction number
+---@return boolean way_is_posible
+function NodeRange:isWallInTheWay(origin, destiny, direction)
+    return self.graphIsWallInTheWay(origin, destiny, direction)
 end
 
 --- Search if there is a path from the start node

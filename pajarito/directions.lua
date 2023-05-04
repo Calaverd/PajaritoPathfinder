@@ -1,6 +1,6 @@
-local bitops = require 'pajarito.bitops'
-local bor = bitops.bor;
-local band = bitops.band;
+local mathops = require 'pajarito.mathops'
+local bor = mathops.bor;
+local band = mathops.band;
 
 -- An special direction to allow the\
 -- conection of nodes separated in space.

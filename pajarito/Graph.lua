@@ -2,7 +2,9 @@ local Directions = require "pajarito.directions"
 local Heap = require "pajarito.heap";
 local Node = require "pajarito.Node";
 local NodeRange = require "pajarito.NodeRange";
-
+local mathops = require "pajarito.mathops"
+local pow = mathops.pow
+local isSamePosition = mathops.isSamePosition
 
 ---@diagnostic disable-next-line: deprecated
 local unpack = unpack or table.unpack
@@ -316,6 +318,33 @@ function Graph:newNodeHeap()
     return heap
 end
 
+--- Creates a new priority heap that will contain
+--- Nodes and store them based on their weight and distance.
+---@param postion number[] position of the destiny node
+---@return Heap
+function Graph:newNodeHeapDistance(postion)
+    ---@type Heap
+    local heap = Heap:new();
+
+    local function compareByWeightDistance(start_x, start_y, start_z)
+        return (function (a, b)
+            local node_a = a[1]
+            local node_b = b[1]
+            local w_a = a[2]
+            local w_b = b[2]
+            local ax,ay,az = unpack(node_a.position)
+            local bx,by,bz = unpack(node_b.position)
+            local cost_a = w_a * (pow(ax-start_x,2) + pow(ay-start_y,2) + pow((az or 0)-(start_z or 0),2))
+            local cost_b = w_b * (pow(bx-start_x,2) + pow(by-start_y,2) + pow((bz or 0)-(start_z or 0),2))
+            return cost_a < cost_b
+        end)
+    end
+
+    heap:setCompare(compareByWeightDistance(postion[1], postion[2], postion[3]))
+    return heap
+end
+
+
 --- Converts a position given as a list the corresponding 
 --- node ID in the map. 
 --- The ID is constructed based on the graph's settings
@@ -493,6 +522,147 @@ function Graph:constructNodeRange(start, max_cost, type_movement, collition_grou
             return self:isWallInTheWay(origin, destiny, direction) end
     })
     return range
+end
+
+--- Retruns a range of the explored nodes to reach a certain path
+---Example:
+---> local start = {2,2}\
+---> local target = {10,10}\
+---> local node_range_a = my_graph:findPath(start, target, 'manhattan')
+---@private
+---@param use_dikstra boolean 
+---@param start number[] Starting point
+---@param target number[] Target point
+---@param type_movement? string manhattan or diagonal
+---@param collition_groups ?string[] a list of object groups to consider as impassable terrain
+---@return NodeRange range
+function Graph:rangeForDirectPath(use_dikstra, start, target, type_movement, collition_groups)
+    local start_node = self:getNode( self:positionToMapId(start) )
+    local target_node = self:getNode( self:positionToMapId(target) )
+    local range_to_target = 0
+    if not start_node or not target_node then
+        return NodeRange:new({})
+    end
+    local start_weight =  0 -- self:getNodeWeight(start_node)
+    local nodes_explored = {}
+    local nodes_in_queue = {}
+    local nodes_in_border = {}
+    --- We use a nodeheap that gives priority to closer ones
+    local node_queue = self:newNodeHeapDistance(target)
+    if use_dikstra then -- we use the normal heap
+        node_queue = self:newNodeHeap();
+    end
+    local allowed_directions = Directions[self.settings.type][type_movement or 'manhattan']
+    local found_target = false
+
+    nodes_explored[start_node.id] = start_weight;
+    node_queue:push({start_node, start_weight});
+    while not found_target do
+
+        local poped = node_queue:pop()
+        if not poped then -- no more nodes to search
+            break
+        end
+        local current = poped[1] --[[@as Node]]
+        local weight = nodes_in_queue[current.id] or start_weight
+        nodes_in_queue[current.id] = nil;
+
+        for _,direction in ipairs( allowed_directions ) do
+            local node = current.conections[direction] --[[@as Node]]
+
+            if not node then
+                goto continue
+            end
+
+            local node_id = node.id
+            local node_weight = self:getNodeWeight(node)
+            local accumulated_weight = node_weight+weight
+            local is_way_possible =
+                 not self:isImpassable(node) and
+                 not self:isWallInTheWay(current, node, direction) and
+                 not self:isBlokedByObject(node, collition_groups)
+            if not nodes_explored[node_id] -- is not yet explored
+                and not nodes_in_queue[node_id] -- is not yet in queue
+                then
+                if is_way_possible then
+                    nodes_in_queue[node_id] = accumulated_weight
+                    --- We save to the queue the node and their acumulated weight
+                    node_queue:push({node, accumulated_weight})
+                    -- clean the border if we marked it before
+                    -- (this case only happens if node was behind a wall)
+                    nodes_in_border[node_id] = nil
+                else
+                    local border_weight = accumulated_weight
+                    if not is_way_possible then
+                        border_weight = -1
+                    end
+                    nodes_in_border[node_id] = border_weight
+                end
+            end
+
+            ::continue::
+        end
+        nodes_explored[current.id] = weight
+        if isSamePosition(current.position, target) then
+            found_target = true
+            range_to_target = weight
+            -- nodes_explored[node_id] = node_weight
+            break
+        end
+    end
+
+    local width = 0
+    local height = 0
+    local depth = 0
+    if self.settings.type == '2D' then
+        height = #self.settings.map
+        width = #self.settings.map[1]
+    end
+
+    local range = NodeRange:new({
+        range = range_to_target,
+        start_id = start_node.id,
+        node_traversal_weights = nodes_explored,
+        border = nodes_in_border,
+        type_movement  = type_movement or "manhattan",
+        width = width, height = height, depth = depth,
+        map_type = self.settings.type,
+        graphGetNode = function (id) return self:getNode(id) end,
+        graphIsWallInTheWay = function (origin, destiny, direction)
+            return self:isWallInTheWay(origin, destiny, direction) end
+    })
+    return range
+end
+
+--- This function uses A* algorithm to return the
+--- node range and the path to get to the point.
+--- if not path is found, it returns nothing
+---@param start number[] position of the start point
+---@param target number[]
+---@param type_movement? string manhattan or diagonal
+---@param collition_groups ?string[] a list of object groups to consider as impassable terrain
+---@return NodePath | nil, NodeRange | nil
+function Graph:findPath(start, target, type_movement, collition_groups)
+    local range = self:rangeForDirectPath(false, start, target, type_movement, collition_groups)
+    local path = range:getPathTo(target, true)
+    return path, range
+end
+
+--- This function uses Dijkstra algorithm to return the
+--- node range and the path to get to the point.
+--- if not path is found, it returns nothing
+---@param start number[] position of the start point
+---@param target number[]
+---@param type_movement? string manhattan or diagonal
+---@param collition_groups ?string[] a list of object groups to consider as impassable terrain
+---@return NodePath | nil, NodeRange | nil
+function Graph:findPathDijkstra(start, target, type_movement, collition_groups)
+    local range = self:rangeForDirectPath(true, start, target, type_movement, collition_groups)
+    local path = range:getPathTo(target, true)
+    if path:isEmpty() then
+        return nil, nil
+    end
+    return path, range
 end
 
 return Graph

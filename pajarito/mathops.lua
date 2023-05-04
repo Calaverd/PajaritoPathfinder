@@ -9,17 +9,18 @@ local v_number = tonumber(_VERSION:match '(%d%.%d)')
 --- A simple wraper for the bit operations that
 --- are used so can they work in different lua
 --- environments
----@class bitops
+---@class mathops
 ---@field band fun(a:integer, b:integer):integer
 ---@field bor fun(a:integer, b:integer):integer
-local bitops = {}
+---@field buildClosestDistanceCompareFunction fun(x:number, y:number, z?:number): function
+local mathops = {}
 
 ---@diagnostic disable-next-line: undefined-global
 if type(jit) == 'table' then
     -- 'Using Lua Jit Bitwise'
     -- import Lua jit bit operations
     local bit = require("bit")
-    bitops = {band=bit.band, bor=bit.bor}
+    mathops = {band=bit.band, bor=bit.bor}
 elseif v_number >= 5.3 then
     -- 'Using Lua Built-in Bitwise'
     -- use lua build-in bitwise operators
@@ -27,14 +28,14 @@ elseif v_number >= 5.3 then
     -- on lower versions of Lua while is parsing
     local band = load("return function (a,b) return (a & b) end")()
     local bor = load("return function (a,b) return (a | b) end")()
-    bitops = {band=band, bor=bor}
+    mathops = {band=band, bor=bor}
 else
     -- 'Using the Lua lib "bit32" for Bitwise'
     -- no Lua jit nor lua 5.3 >:(
     -- try import bit32
     local status_ok, bit = pcall(require, "bit32")
     if (status_ok) then
-        bitops = {band=bit.band, bor=bit.bor}
+        mathops = {band=bit.band, bor=bit.bor}
     else
         -- 'Using Pure Lua Bitwise'
         -- Why are you doing this to yourself?
@@ -59,8 +60,25 @@ else
             end
             return c
         end
-        bitops = {band=band, bor=bor}
+        mathops = {band=band, bor=bor}
     end
 end
 
-return bitops
+---@diagnostic disable-next-line: deprecated
+local pow = math.pow
+if not pow then
+    pow = load("return function (a,b) return (a ^ b) end")()
+end
+
+mathops.pow = pow
+
+---Check if two position arrays are the same.
+---@param pos_a number[]
+---@param pos_b number[]
+---@return boolean
+mathops.isSamePosition = function (pos_a, pos_b)
+    return pos_a[1] == pos_b[1] and pos_a[2] == pos_b[2] and pos_a[3] == pos_b[3];
+end
+
+
+return mathops
