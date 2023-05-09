@@ -132,6 +132,7 @@ local Allowed_Wall_Facing_Names = {
 ---@enum Allowed_Flips
 local Allowed_Flips = {
     PORTAL = PORTAL,
+    [PORTAL] = PORTAL,
 
     NORTH = SOUTH,
     NORTH_UP = SOUTH_DOWN,
@@ -276,9 +277,9 @@ return {
     -- can be taken on the grid based on the grid tipe and move
     ["2D"] = {
         ---@type number[]
-        manhattan = {UP,LEFT,RIGHT,DOWN},
+        manhattan = {UP,LEFT,RIGHT,DOWN,PORTAL},
         ---@type number[]
-        diagonal = {UP,LEFT,RIGHT,DOWN,UP_LEFT,UP_RIGHT,DOWN_LEFT,DOWN_RIGHT}
+        diagonal = {UP,LEFT,RIGHT,DOWN,UP_LEFT,UP_RIGHT,DOWN_LEFT,DOWN_RIGHT,PORTAL}
     },
     ["3D"] = {
         ---@type number[]

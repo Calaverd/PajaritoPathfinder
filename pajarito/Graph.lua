@@ -27,6 +27,7 @@ local Node_getPointId = Node.getPointId
 ---@field node_map {numeber:Node} A list of all the nodes on this graph
 ---@field weight_map table<number,number> A map for the weight of tiles
 ---@field walls table<number, number> A map for node id and wall
+---@field portals table<number,NodeID[]> A list of the active portals with the nodes it connects
 ---@field objects { ObjectID:NodeID } A map to keep track of the position of objects usefull to handle entities that move around the map.
 ---@field objects_ref {ObjectID:table} A map to get the object refrenced by the object_id
 ---@field object_groups { string:{ObjectID:boolean} } to store the groups of the objects
@@ -43,6 +44,7 @@ function Graph:new(settings)
     obj.weight_map = {}
     obj.walls = {}
     obj.settings = settings
+    obj.portals = {}
     obj.objects = {}
     obj.objects_ref = {}
     obj.object_groups = {}
@@ -94,14 +96,58 @@ function Graph:connectNodeToNeighbors(new_node, x,y,z,width,height,deep)
     -- Connect the node to their neighbourds
     local all_2d_directions = Directions["2D"].diagonal;
     for _, direction in pairs( all_2d_directions ) do
-        local move = Directions.movements[direction]
-        local n_x, n_y, n_z = x+move.x, y+move.y, z+move.z
-        local neighbour_id = Node_getPointId(n_x, n_y, n_z, width, height, deep)
-        local neighbour = self:getNode(neighbour_id)
+        local neighbour = nil
+        if direction ~= 0 then
+            local move = Directions.movements[direction]
+            local n_x, n_y, n_z = x+move.x, y+move.y, z+move.z
+            local neighbour_id = Node_getPointId(n_x, n_y, n_z, width, height, deep)
+            neighbour = self:getNode(neighbour_id)
+        end
         if neighbour then
             new_node:makeTwoWayLinkWith(neighbour, direction)
         end
     end
+end
+
+--- This function connects to poitns if they exist inside the map
+--- to each other, so the pathfinder can work between they.
+--- if one point is outside the map or has already a portal,
+--- the operation is aborted
+---@param point_a number[]
+---@param point_b number[]
+---@return boolean success
+function Graph:createPortalBetween(point_a, point_b)
+    local n1 = self:getNode(self:positionToMapId(point_a))
+    local n2 = self:getNode(self:positionToMapId(point_b))
+    if n1 and n2 then
+        if not n1:hasPortal() and not n2:hasPortal() then
+            n1:makeTwoWayLinkWith(n2,0) -- direction 0, portal
+            self.portals[mathops.bxor(n1.id, n2.id)] = {n1.id, n2.id}
+            return true
+        end
+    end
+    return false
+end
+
+--- This function removes a conection between nodes
+--- if one point is outside the map or the points are
+--- not connected, then the operation is aborted
+---@param point_a number[]
+---@param point_b number[]
+---@return boolean success
+function Graph:removePortalBetween(point_a, point_b)
+    local n1 = self:getNode(self:positionToMapId(point_a))
+    local n2 = self:getNode(self:positionToMapId(point_b))
+    if n1 and n2 then
+        -- check if exist the portal
+        local portal_id = mathops.bxor(n1.id, n2.id)
+        if self.portals[portal_id] then
+            n1:clearTwoWayLinkWith(n2)
+            self.portals[portal_id] = nil
+            return true
+        end
+    end
+    return false
 end
 
 --- Sets the given table as the weight_map
@@ -658,7 +704,7 @@ end
 ---@return NodePath | nil, NodeRange | nil
 function Graph:findPathDijkstra(start, target, type_movement, collition_groups)
     local range = self:rangeForDirectPath(true, start, target, type_movement, collition_groups)
-    local path = range:getPathTo(target, true)
+    local path = range:getPathTo(target)
     if path:isEmpty() then
         return nil, nil
     end

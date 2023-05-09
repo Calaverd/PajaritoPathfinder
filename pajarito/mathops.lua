@@ -20,7 +20,7 @@ if type(jit) == 'table' then
     -- 'Using Lua Jit Bitwise'
     -- import Lua jit bit operations
     local bit = require("bit")
-    mathops = {band=bit.band, bor=bit.bor}
+    mathops = {band=bit.band, bor=bit.bor, bxor=bit.bxor}
 elseif v_number >= 5.3 then
     -- 'Using Lua Built-in Bitwise'
     -- use lua build-in bitwise operators
@@ -28,14 +28,15 @@ elseif v_number >= 5.3 then
     -- on lower versions of Lua while is parsing
     local band = load("return function (a,b) return (a & b) end")()
     local bor = load("return function (a,b) return (a | b) end")()
-    mathops = {band=band, bor=bor}
+    local bxor = load("return function (a,b) return (a ~ b) end")()
+    mathops = {band=band, bor=bor, bxor=bxor}
 else
     -- 'Using the Lua lib "bit32" for Bitwise'
     -- no Lua jit nor lua 5.3 >:(
     -- try import bit32
     local status_ok, bit = pcall(require, "bit32")
     if (status_ok) then
-        mathops = {band=bit.band, bor=bit.bor}
+        mathops = {band=bit.band, bor=bit.bor, bxor=bit.bxor}
     else
         -- 'Using Pure Lua Bitwise'
         -- Why are you doing this to yourself?
@@ -60,7 +61,16 @@ else
             end
             return c
         end
-        mathops = {band=band, bor=bor}
+        local bxor = function(a, b)
+            local p, c = 1, 0
+            while a + b > 0 do
+                local ra, rb = FMOD(a, 2), FMOD(b, 2)
+                if ra ~= rb then c = c + p end
+                a, b, p = (a - ra) / 2, (b - rb) / 2, p * 2
+            end
+            return c
+        end
+        mathops = {band=band, bor=bor, bxor=bxor}
     end
 end
 

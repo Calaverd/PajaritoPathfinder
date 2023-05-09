@@ -89,6 +89,12 @@ function Node:isTileNumber()
     return self.is_tile_number
 end
 
+--- This function cheeks if the node has an active portal.
+---@return boolean
+function Node:hasPortal()
+    return self.conections[0] ~= nil
+end
+
 --- Connect this node to another and
 --- that another node to this one.
 ---@param node Node
