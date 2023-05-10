@@ -259,6 +259,7 @@ end
 
 return {
     --- All possible movements in a grid are defined here.
+    ---@enum movements
     movements = FULL_VON_NEUMANN_NEIGHBORHOOD,
     --- A list of correspondences between number values
     --- to their string names

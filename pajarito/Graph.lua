@@ -4,6 +4,7 @@ local Node = require "pajarito.Node";
 local NodeRange = require "pajarito.NodeRange";
 local mathops = require "pajarito.mathops"
 local pow = mathops.pow
+local band = mathops.band
 local isSamePosition = mathops.isSamePosition
 
 ---@diagnostic disable-next-line: deprecated
@@ -26,6 +27,7 @@ local Node_getPointId = Node.getPointId
 ---@class Graph
 ---@field node_map {numeber:Node} A list of all the nodes on this graph
 ---@field weight_map table<number,number> A map for the weight of tiles
+---@field wrap_options integer
 ---@field walls table<number, number> A map for node id and wall
 ---@field portals table<number,NodeID[]> A list of the active portals with the nodes it connects
 ---@field objects { ObjectID:NodeID } A map to keep track of the position of objects usefull to handle entities that move around the map.
@@ -48,6 +50,13 @@ function Graph:new(settings)
     obj.objects = {}
     obj.objects_ref = {}
     obj.object_groups = {}
+
+    ---@enum wrap_options
+    obj.wrap_options = {
+        X = 1,
+        Y = 2,
+        XY = 3
+    }
 
     setmetatable(obj, self)
     self.__index = self
@@ -100,6 +109,14 @@ function Graph:connectNodeToNeighbors(new_node, x,y,z,width,height,deep)
         if direction ~= 0 then
             local move = Directions.movements[direction]
             local n_x, n_y, n_z = x+move.x, y+move.y, z+move.z
+            if band(self.wrap or 0, 1) == 1 then
+                if n_x == 0 then n_x = width end
+                if n_x > width then n_x = 1 end
+            end
+            if band(self.wrap or 0, 2) == 2 then
+                if n_y == 0 then n_y = height end
+                if n_y > height then n_y = 1 end
+            end
             local neighbour_id = Node_getPointId(n_x, n_y, n_z, width, height, deep)
             neighbour = self:getNode(neighbour_id)
         end
@@ -345,6 +362,7 @@ end
 --- Starts building the Graph from the
 --- instructions given in the settings
 function Graph:build()
+    self.wrap = self.settings.wrap
     if self.settings.type == '2D' then
         self:buildFrom2DMap(self.settings.map)
     end

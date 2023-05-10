@@ -49,6 +49,18 @@ function Node.getPointId(x_pos, y_pos, z_pos, width, height, depth)
     return FLOOR( (z_pos* depth * width ) + ((y_pos-1) * width) + (x_pos-1) )+1
 end
 
+---Returns the direction a node is connected to another
+---nil if the node is not connected
+---@param node any
+---@return number|nil direction
+function Node:directionToConnected(node)
+    for direction,snode in pairs(self.conections) do
+        if snode.id == node.id then
+            return direction
+        end
+    end
+    return nil
+end
 
 --- Node constructor
 ---@param id number unique to this node on the graph
