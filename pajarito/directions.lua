@@ -35,6 +35,7 @@ local SOUTH_UP_RIGHT = 29
 local SOUTH_DOWN_LEFT = 31
 local SOUTH_DOWN_RIGHT = 33
 
+---@package
 ---@enum direction_names
 local direction_names = {
     [0] = "PORTAL",
@@ -66,6 +67,7 @@ local direction_names = {
     [33] = "SOUTH_DOWN_RIGHT"
 }
 
+---@package
 ---@enum values
 local direction_values = {
     PORTAL = 0,
@@ -98,6 +100,7 @@ local direction_values = {
 }
 
 --- A list that contains the only directions valid to use for walls.
+---@package
 ---@enum Allowed_Wall_Facing
 local Allowed_Wall_Facing = {
     [NORTH] = NORTH,
@@ -112,6 +115,7 @@ local Allowed_Wall_Facing = {
     [SOUTH] = SOUTH
 }
 
+---@package
 ---@enum Allowed_Wall_Facing_Names
 local Allowed_Wall_Facing_Names = {
     NORTH = NORTH,
@@ -129,6 +133,7 @@ local Allowed_Wall_Facing_Names = {
 --- A simple enum for the directions
 --- and their flips either using the
 --- number or the string name.
+---@package
 ---@enum Allowed_Flips
 local Allowed_Flips = {
     PORTAL = PORTAL,
@@ -193,6 +198,7 @@ local Allowed_Flips = {
     [SOUTH_DOWN_RIGHT] = NORTH_UP_LEFT,
 }
 
+---@package
 ---@enum VON_NEUMANN_NEIGHBORHOOD
 local FULL_VON_NEUMANN_NEIGHBORHOOD = {
 --[[ UPPER PART ]]
@@ -257,83 +263,101 @@ local function getValue(v)
     return nil
 end
 
-return {
-    --- All possible movements in a grid are defined here.
-    ---@enum movements
-    movements = FULL_VON_NEUMANN_NEIGHBORHOOD,
-    --- A list of correspondences between number values
-    --- to their string names
-    names = direction_names,
-    --- Gets the directions enum
-    get = function () return direction_values end,
-    --- A helper function to create custom
-    --- nomenclature (alias) for the directions.
-    ---@param alias string
-    ---@param value string|number|nil
-    setDirectionAlias = function (alias, value)
-        user_correspondences[alias] = value
-    end,
-    clearAllCorrespondences = function () user_correspondences = {}  end,
-    --- The sets of posible allowed directions to move that
-    -- can be taken on the grid based on the grid tipe and move
-    ["2D"] = {
-        ---@type number[]
-        manhattan = {UP,LEFT,RIGHT,DOWN,PORTAL},
-        ---@type number[]
-        diagonal = {UP,LEFT,RIGHT,DOWN,UP_LEFT,UP_RIGHT,DOWN_LEFT,DOWN_RIGHT,PORTAL}
-    },
-    ["3D"] = {
-        ---@type number[]
-        manhattan = {UP,LEFT,RIGHT,DOWN,NORTH, SOUTH},
-        ---@type number[]
-        diagonal = {NORTH,NORTH_UP,NORTH_LEFT,NORTH_RIGHT,NORTH_DOWN,NORTH_UP_LEFT,NORTH_UP_RIGHT,NORTH_DOWN_LEFT,NORTH_DOWN_RIGHT,UP,LEFT,RIGHT,DOWN,UP_LEFT,UP_RIGHT,DOWN_LEFT,DOWN_RIGHT,SOUTH,SOUTH_UP,SOUTH_LEFT,SOUTH_RIGHT,SOUTH_DOWN,SOUTH_UP_LEFT,SOUTH_UP_RIGHT,SOUTH_DOWN_LEFT,SOUTH_DOWN_RIGHT}
-    },
-    ---Takes any number of arguments that describes the direction
-    -- and creates an number representation for that specific combination.
-    ---@example wall = createWall(UP_LEFT, DOWN_RIGH, ...)
-    ---@param ... integer|string
-    ---@return integer
-    mergeDirections = function(...)
-        local num = 0
-        -- check if all the walls are on the list or valid
-        for _,v in ipairs({...}) do
-            local value = getValue(v);
-            if value == nil then
-                assert(false,'Invalid wall value. Given "'..tostring(v)..'".')
-            end
-            num = bor( num, value --[[@as number]] )
-        end
-        return num
-    end,
-    --- Checks if the wall can block the movement
-    --- in the given direction.
-    ---@param wall integer
-    ---@param direction integer
-    ---@return boolean
-    isWallFacingDirection = function(wall,direction)
-        if not wall or not Allowed_Wall_Facing[direction] then
-            return false
-        end
-        return band(wall,Allowed_Wall_Facing[direction]) == direction
-    end,
-    --- Takes the merged directions value and
-    --- returns their former directions
-    ---@param merged_value any
-    ---@return table
-    splitDirections = function (merged_value)
-        local directions = {}
-        for _, value in pairs(Allowed_Wall_Facing_Names) do
-            if band(merged_value, value) == value then
-                directions[#directions+1] = value
-            end
-        end
-        return directions
-    end,
-    --- Takes the name or the number id of a direction AND
-    --- returns the fliped direction number id
-    ---@param direction string|integer
-    ---@return integer
-    flip = function (direction)
-        return Allowed_Flips[direction]
-    end
+--- The direction module, contains funtions
+--- for the operation and handle of directions
+--- A Node is an object that can be conected to
+--- other Nodes (neighbours). 
+---@class Directions
+local directions = {}
+
+--- A table that contains the possible movements
+--- to translate in space in a grid.
+directions.movements = FULL_VON_NEUMANN_NEIGHBORHOOD
+
+--- A list of correspondences between number values
+--- to their string names
+directions.names = direction_names
+
+--- The list of the possible directions
+directions.values = direction_values
+
+--- A helper function to create custom
+--- nomenclature (alias) for the directions.
+---@param alias string
+---@param value string|number|nil
+function directions.setDirectionAlias(alias, value)
+    user_correspondences[alias] = value
+end
+
+--- This function clears the user defined alias for directions
+function directions.clearAllAlias() user_correspondences = {}  end
+
+--- The sets of posible allowed directions to move that
+-- can be taken on the grid based on the grid tipe and move
+directions["2D"] = {
+    ---@type number[]
+    manhattan = {UP,LEFT,RIGHT,DOWN,PORTAL},
+    ---@type number[]
+    diagonal = {UP,LEFT,RIGHT,DOWN,UP_LEFT,UP_RIGHT,DOWN_LEFT,DOWN_RIGHT,PORTAL}
+    }
+
+directions["3D"] = {
+    ---@type number[]
+    manhattan = {UP,LEFT,RIGHT,DOWN,NORTH, SOUTH},
+    ---@type number[]
+    diagonal = {NORTH,NORTH_UP,NORTH_LEFT,NORTH_RIGHT,NORTH_DOWN,NORTH_UP_LEFT,NORTH_UP_RIGHT,NORTH_DOWN_LEFT,NORTH_DOWN_RIGHT,UP,LEFT,RIGHT,DOWN,UP_LEFT,UP_RIGHT,DOWN_LEFT,DOWN_RIGHT,SOUTH,SOUTH_UP,SOUTH_LEFT,SOUTH_RIGHT,SOUTH_DOWN,SOUTH_UP_LEFT,SOUTH_UP_RIGHT,SOUTH_DOWN_LEFT,SOUTH_DOWN_RIGHT}
 }
+
+---Takes any number of arguments that describes the direction
+-- and creates an number representation for that specific combination.
+---@example wall = createWall(UP_LEFT, DOWN_RIGH, ...)
+---@param ... integer|string
+---@return integer
+function directions.mergeDirections(...)
+    local num = 0
+    -- check if all the walls are on the list or valid
+    for _,v in ipairs({...}) do
+        local value = getValue(v);
+        if value == nil then
+            assert(false,'Invalid wall value. Given "'..tostring(v)..'".')
+        end
+        num = bor( num, value --[[@as number]] )
+    end
+    return num
+end
+
+--- Checks if the wall can block the movement
+--- in the given direction.
+---@param wall integer
+---@param direction integer
+---@return boolean
+function directions.isWallFacingDirection(wall,direction)
+    if not wall or not Allowed_Wall_Facing[direction] then
+        return false
+    end
+    return band(wall,Allowed_Wall_Facing[direction]) == direction
+end
+
+--- Takes the merged directions value and
+--- returns their former directions
+---@param merged_value any
+---@return table
+function directions.splitDirections(merged_value)
+    local splited_directions = {}
+    for _, value in pairs(Allowed_Wall_Facing_Names) do
+        if band(merged_value, value) == value then
+            splited_directions[#splited_directions+1] = value
+        end
+    end
+    return splited_directions
+end
+
+--- Takes the name or the number id of a direction AND
+--- returns the fliped direction number id
+---@param direction string|integer
+---@return integer
+function directions.flip(direction)
+    return Allowed_Flips[direction]
+end
+
+return directions
