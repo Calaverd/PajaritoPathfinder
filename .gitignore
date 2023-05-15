@@ -1,6 +1,7 @@
 # Compiled Lua sources
 luac.out
 .vscode
+./test/*
 
 # luarocks build files
 *.pajarito.rock
