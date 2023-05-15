@@ -3,16 +3,16 @@ local Directions = require "pajarito.directions"
 ---@alias NodeID integer
 ---@alias ObjectID integer
 
---- A Node is an object that can be conected to
---- other Nodes (neighbours). 
+--- A Node is an object that can be connected to
+--- other Nodes (neighbors).
 ---@class Node
 ---@field id NodeID To identify the node in the grid.
 ---@field tile number|string The tile value on the equivalent map
 ---@field position number[] A list for the position on [x,y,z]
----@field conections table The nodes that are neighbours to this one.
----@field objects {ObjectID:boolean} a list of the objecs in this node.
+---@field conections table The nodes that are neighbors to this one.
+---@field objects {ObjectID:boolean} a list of the objects in this node.
 ---@field private is_tile_number boolean a value that stores the type of the tile
----@field private num_objects number the number of objecs in this node.
+---@field private num_objects number the number of objects in this node.
 local Node = {}
 
 local FLOOR = math.floor
@@ -27,8 +27,8 @@ local function isInRange(num,min,max)
 end
 
 --- Static helper function that takes the 
---- value of a position on the map\
---- and their dimentions to create an id for that point
+--- value of a position on the map and its
+--- dimensions to create an id for that point
 ---@param x_pos number
 ---@param y_pos number
 ---@param z_pos number
@@ -80,7 +80,7 @@ function Node:new(id, position)
     return obj
 end
 
---- Conenct this node to another.
+--- Connect this node to another.
 ---@param node Node
 ---@param direction integer
 function Node:makeOneWayLinkWith(node, direction)
@@ -88,7 +88,7 @@ function Node:makeOneWayLinkWith(node, direction)
 end
 
 --- Sets the value of the node tile and also
---- check the type of it.
+--- checks the type of it.
 ---@param tile number|string
 function Node:setTile(tile)
     self.tile = tile
@@ -101,7 +101,7 @@ function Node:isTileNumber()
     return self.is_tile_number
 end
 
---- This function cheeks if the node has an active portal.
+--- This function checks if the node has an active portal.
 ---@return boolean
 function Node:hasPortal()
     return self.conections[0] ~= nil
@@ -116,7 +116,7 @@ function Node:makeTwoWayLinkWith(node, direction)
     node:makeOneWayLinkWith(self, Directions.flip(direction))
 end
 
---- Delete the link if the conection exist
+--- Delete the link if the connection exist
 ---@param node_to_clear Node
 function Node:clearOneWayLinkWith(node_to_clear)
     for direction, conected_node in pairs(self.conections) do
@@ -128,14 +128,14 @@ function Node:clearOneWayLinkWith(node_to_clear)
 end
 
 --- Deletes the link connecting this
---- and the other node if exist
+--- and the other node if exists
 ---@param node Node
 function Node:clearTwoWayLinkWith(node)
     self:clearOneWayLinkWith(node)
     node:clearOneWayLinkWith(self)
 end
 
----Adds a object as belogin to this node
+---Adds an object as belonging to this node
 ---@param object_id ObjectID
 function Node:addObject(object_id)
     self.objects[object_id] = true

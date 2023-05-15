@@ -6,13 +6,13 @@ local mathops = require "pajarito.mathops"
 local pow = mathops.pow
 
 --- Contains a set of nodes that represent the
---- maximum extend of movement within a given range
+--- maximum extent of movement within a given range
 --- from a start node.
 ---@class NodeRange
----@field start_id number id of the node from were the range starts
+---@field start_id number id of the node from where the range starts
 ---@field range number max allowed weight for traversal
 ---@field node_traversal_weights {NodeID: number} map of Node id to their corresponding weight in the range
----@field type_movement string what movement is used to build the range
+---@field type_movement string The kind of movement is used to build the range.
 ---@field border {NodeID: number} map of Node id that contains the border nodes to this range.
 ---@field private graphGetNode fun(id:NodeID): Node|nil
 ---@field private graphIsWallInTheWay fun(origin:Node,destiny:Node, direction:number): boolean
@@ -46,7 +46,7 @@ function NodeRange:getIdFromPoint(point)
 end
 
 --- Checks if a given point is contained
---- whitin the NodeRange, if is contained
+--- within the NodeRange, if is contained
 --- returns the id of the point, otherwise
 --- returns false
 ---@param point number[]
@@ -73,8 +73,8 @@ function NodeRange:getReachCostAt(id)
 end
 
 --- Checks if a given point is contained
---- whitin the border of this NodeRange.\
---- If is contained returns the id of
+--- within the border of this NodeRange.\
+--- If it is contained returns the id of
 --- the point, otherwise returns false
 ---@param point number[]
 ---@return NodeID|boolean
@@ -88,7 +88,7 @@ end
 
 --- Returns the weight of the border node.\
 --- If is a negative number, the node can not
---- be reached by their neighbours.\
+--- be reached by its neighbours.
 --- If nil, the node does not exist on the border.
 ---@param id NodeID
 ---@return number|nil
@@ -102,6 +102,7 @@ end
 ---@param node_id NodeID
 ---@return Node|nil
 function NodeRange:getNode(node_id)
+    ---@package
     return self.graphGetNode(node_id)
 end
 
@@ -109,10 +110,11 @@ end
 --- range started
 ---@return Node|nil
 function NodeRange:getStartNode()
+    ---@package
     return self.graphGetNode(self.start_id)
 end
 
---- Is this Range is not empty, returns the staring
+--- If this Range is not empty, return the staring
 --- node position.
 ---@return number[]|nil position
 function NodeRange:getStartNodePosition()
@@ -123,7 +125,7 @@ function NodeRange:getStartNodePosition()
     return nil
 end
 
---- Check if a given array for position is equal
+--- Check if a given array for the position is equal
 --- to the position of the start node.
 ---@param position number[]
 ---@return boolean
@@ -168,11 +170,12 @@ local function buildClosestDistanceCompareFunction(start_x, start_y, start_z)
     end)
 end
 
---- Check if there is posible to go
---- from a connected node to another.\
---- It returs false if the destiny node is
---- impassable terrain, or exist a wall in
+--- Check if there is possible to go
+--- from one connected node to another.\
+--- It returns false if the destiny node is
+--- impassable terrain, or exists a wall in
 --- between nodes.
+---@package
 ---@param origin Node
 ---@param destiny Node
 ---@param direction number
@@ -184,11 +187,11 @@ end
 --- Search if there is a path from the start node
 --- of the range to the destination.\
 --- Returns a NodePath that contains the nodes.\
---- Unless warranty_shortest option is active, will
---- return the first path that finds to the point.\
+--- Unless the warranty_shortest option is active, will
+--- return the first path that finds the point.\
 --- The NodePath is empty if the path does not exist.
 ---@param destination number[] position of the destination
----@param warranty_shortest_path? boolean Use only if you ABSOLUTELY need the shortest, Can be slower on large maps.
+---@param warranty_shortest_path? boolean Use only if you *absolutely* need the shortest, Can be slower on large maps.
 ---@return NodePath path
 function NodeRange:getPathTo(destination, warranty_shortest_path)
     local destination_id = self:hasPoint(destination)

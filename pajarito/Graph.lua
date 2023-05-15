@@ -21,19 +21,17 @@ end
 local Node_getPointId = Node.getPointId
 
 --- A class for the representation of
---- maps as a Graph. \
---- Is composed of nodes and allows for
---- operations on them
+--- maps as a Graph. Is composed of nodes and allows for
+--- operations on them.
 ---@class Graph
----@field node_map {numeber:Node} A list of all the nodes on this graph
+---@field node_map {number:Node} A list of all the nodes on this graph
 ---@field weight_map table<number,number> A map for the weight of tiles
----@field wrap_options integer
----@field walls table<number, number> A map for node id and wall
----@field portals table<number,NodeID[]> A list of the active portals with the nodes it connects
----@field objects { ObjectID:NodeID } A map to keep track of the position of objects usefull to handle entities that move around the map.
----@field objects_ref {ObjectID:table} A map to get the object refrenced by the object_id
----@field object_groups { string:{ObjectID:boolean} } to store the groups of the objects
----@field settings table A map for that contains contextual info to build the graph
+---@field walls table<number, number> A map for node id and wall.
+---@field portals table<number,NodeID[]> A list of the active portals with the nodes it connects.
+---@field objects { ObjectID:NodeID } A map to keep track of the position of objects useful to handle entities that move around the map.
+---@field objects_ref {ObjectID:table} A map to get the object referenced by the object_id.
+---@field object_groups { string:{ObjectID:boolean} } to store the groups of the objects.
+---@field settings table A map that contains contextual info to build the graph.
 local Graph = {}
 
 
@@ -50,20 +48,12 @@ function Graph:new(settings)
     obj.objects = {}
     obj.objects_ref = {}
     obj.object_groups = {}
-
-    ---@enum wrap_options
-    obj.wrap_options = {
-        X = 1,
-        Y = 2,
-        XY = 3
-    }
-
     setmetatable(obj, self)
     self.__index = self
     return obj
 end
 
---- Returns the node with that id if exist
+--- Returns the node with that id if exists
 --- in the graph, otherwise nil.
 ---@param id_node integer
 ---@return Node | nil
@@ -77,8 +67,8 @@ function Graph:addNode(node)
     self.node_map[node.id] = node;
 end
 
---- Takes the postion of a node in the graph
---- and updates their contained tile value.
+--- Takes the position of a node in the graph
+--- and updates the contained tile value.
 ---@param position number[]
 ---@param tile number|string
 function Graph:updateNodeTile(position, tile)
@@ -89,11 +79,10 @@ function Graph:updateNodeTile(position, tile)
     end
 end
 
---- Adds a node to the graph and conects
---- it to their neighbourds if they exist
---- or there is no wall between.\
+--- Adds a node to the graph to connect it to its neighbors
+--- if they exist or there is no wall between them.\
 --- Needs some contextual info about node position
---- and the graph dimentions.
+--- and the graph dimensions.
 ---@param new_node Node
 ---@param x number
 ---@param y number
@@ -109,11 +98,11 @@ function Graph:connectNodeToNeighbors(new_node, x,y,z,width,height,deep)
         if direction ~= 0 then
             local move = Directions.movements[direction]
             local n_x, n_y, n_z = x+move.x, y+move.y, z+move.z
-            if band(self.wrap or 0, 1) == 1 then
+            if band(self.settings.wrap or 0, 1) == 1 then
                 if n_x == 0 then n_x = width end
                 if n_x > width then n_x = 1 end
             end
-            if band(self.wrap or 0, 2) == 2 then
+            if band(self.settings.wrap or 0, 2) == 2 then
                 if n_y == 0 then n_y = height end
                 if n_y > height then n_y = 1 end
             end
@@ -126,9 +115,9 @@ function Graph:connectNodeToNeighbors(new_node, x,y,z,width,height,deep)
     end
 end
 
---- This function connects to poitns if they exist inside the map
---- to each other, so the pathfinder can work between they.
---- if one point is outside the map or has already a portal,
+--- This function connects to points if they exist inside the map
+--- to each other, so the pathfinder can work between them.
+--- If one point is outside the map or has already a portal,
 --- the operation is aborted
 ---@param point_a number[]
 ---@param point_b number[]
@@ -146,9 +135,9 @@ function Graph:createPortalBetween(point_a, point_b)
     return false
 end
 
---- This function removes a conection between nodes
+--- This function removes a connection between nodes
 --- if one point is outside the map or the points are
---- not connected, then the operation is aborted
+--- not connected, then the operation is aborted.
 ---@param point_a number[]
 ---@param point_b number[]
 ---@return boolean success
@@ -156,7 +145,7 @@ function Graph:removePortalBetween(point_a, point_b)
     local n1 = self:getNode(self:positionToMapId(point_a))
     local n2 = self:getNode(self:positionToMapId(point_b))
     if n1 and n2 then
-        -- check if exist the portal
+        -- check if exists the portal
         local portal_id = mathops.bxor(n1.id, n2.id)
         if self.portals[portal_id] then
             n1:clearTwoWayLinkWith(n2)
@@ -193,7 +182,7 @@ function Graph:setWall(position, ...)
 end
 
 --- Returns the wall value at the given position.\
---- Of there is no wall, returns nil
+--- If there is no wall, returns a nil value
 ---@param position number[]
 ---@return number|nil
 function Graph:getWallAt(position)
@@ -218,7 +207,7 @@ end
 --- Custom iterator for the graph walls, it
 --- returns the position and the value.
 -- If the wall position is outside the graph,
--- returns a list fill with -1
+-- return a list fill with -1
 ---@return fun(): number[]|nil, number|nil iterator
 function Graph:iterWalls()
     local node_id = nil
@@ -239,11 +228,11 @@ end
 --- Adds a new object.\
 --- Objects are entities that
 --- can move around the map\
---- Retruns a object_id to handle the object
---- **This function does not cares to check
+--- Retruns an `object_id` to handle the object.
+--- **This function does not care to check
 --- if the new position is a valid one.**
 ---@param object table And object to add.
----@param position number[] Position of the node were this object will be added.
+---@param position number[] Position of the node where this object will be added.
 ---@param groups ?string[] A set of custom groups to the ones this object bellows see Graph:setObjectRules
 ---@return ObjectID object_id
 function Graph:addObject(object, position, groups)
@@ -266,12 +255,12 @@ function Graph:addObject(object, position, groups)
     return object_id
 end
 
---- Moves an object from their current position
+--- Moves an object from its current position
 --- on the graph to a new one.\
----@param object_to_move ObjectID|table -- the object to move itself or their id.
+---@param object_to_move ObjectID|table The object to move itself or its id.
 ---@param new_position number[]
----@return boolean result if the translation could be fullfiled
-function Graph:translasteObject(object_to_move, new_position)
+---@return boolean result if the translation could be fulfilled
+function Graph:translateObject(object_to_move, new_position)
     local old_node = nil
     local object_id = object_to_move --[[@as ObjectID]]
     if self.objects[object_to_move] then
@@ -296,8 +285,8 @@ function Graph:translasteObject(object_to_move, new_position)
     return false
 end
 
---- If exist one or more objects in a position
---- returns a list with the objects, otherwise nil.
+--- If exists one or more objects in a position
+--- return a list with the objects, otherwise nil.
 ---@param position number[]
 ---@return table[] | nil
 function Graph:getObjectsAt(position)
@@ -314,7 +303,7 @@ end
 
 
 ---Removes the object references in the graph
----@param object_to_remove ObjectID|any -- the object to delete itself or their id.
+---@param object_to_remove ObjectID|any The object to delete itself or its id.
 function Graph:removeObject(object_to_remove)
     local old_node = nil
     local object_id = object_to_remove --[[@as ObjectID]]
@@ -340,7 +329,7 @@ end
 
 ---Fills the node_map of the graph using the 
 ---2D map given by the user in the settings.
----@param map_2d table The 2D map to build the graph from
+---@param map_2d table The 2D map to start building the graph.
 function Graph:buildFrom2DMap(map_2d)
     local y = 1
     local height = #map_2d
@@ -362,7 +351,6 @@ end
 --- Starts building the Graph from the
 --- instructions given in the settings
 function Graph:build()
-    self.wrap = self.settings.wrap
     if self.settings.type == '2D' then
         self:buildFrom2DMap(self.settings.map)
     end
@@ -370,7 +358,7 @@ function Graph:build()
 end
 
 --- Creates a new priority heap that will contain
---- Nodes and store them based on their weight.
+--- Nodes and stores them based on their weight.
 ---@return Heap
 function Graph:newNodeHeap()
     ---@type Heap
@@ -383,10 +371,10 @@ function Graph:newNodeHeap()
 end
 
 --- Creates a new priority heap that will contain
---- Nodes and store them based on their weight and distance.
----@param postion number[] position of the destiny node
+--- Nodes and stores them based on their weight and distance.
+---@param position number[] position of the destiny node
 ---@return Heap
-function Graph:newNodeHeapDistance(postion)
+function Graph:newNodeHeapDistance(position)
     ---@type Heap
     local heap = Heap:new();
 
@@ -404,17 +392,17 @@ function Graph:newNodeHeapDistance(postion)
         end)
     end
 
-    heap:setCompare(compareByWeightDistance(postion[1], postion[2], postion[3]))
+    heap:setCompare(compareByWeightDistance(position[1], position[2], position[3]))
     return heap
 end
 
 
---- Converts a position given as a list the corresponding 
---- node ID in the map. 
+--- Converts a position given as a list to the
+--- corresponding node ID in the map.
 --- The ID is constructed based on the graph's settings
 --- (dimensions of the map). Returns the node ID.
 ---@param position number[] The position with the x, y, and z coordinates packed.
----@return NodeID id corresponding to the given position in the graph's map.
+---@return NodeID id corresponds to the given position in the graph's map.
 function Graph:positionToMapId(position)
     local width = 0
     local height = 0
@@ -429,7 +417,7 @@ end
 
 --- Returns the weight of this node in the current weight_map.\
 --- If the node is not in the weight_map,
---- returns the tile of the node if is a number.\
+--- return the tile of the node if is a number.\
 --- If the tile of the node is not a number, returns
 --- the weight as impassable
 ---@param node Node
@@ -445,12 +433,12 @@ function Graph:getNodeWeight(node)
 end
 
 --- Do a check against the objects in the node.
---- and if one is on the collition groups, then
---- the node is considered bloked.
+--- and if one is on the collision groups, then
+--- the node is considered blocked.
 ---@param node Node
 ---@param collition_groups ?string[]
 ---@return boolean
-function Graph:isBlokedByObject(node, collition_groups)
+function Graph:isBlockedByObject(node, collition_groups)
     if not collition_groups or not node:hasObjects() then
         return false
     end
@@ -466,10 +454,10 @@ function Graph:isBlokedByObject(node, collition_groups)
     return false
 end
 
---- Check if there is posible to go
---- from a connected node to another.\
---- It returs false if the destiny node is
---- impassable terrain, or exist a wall in
+--- Check if there is possible to go
+--- from one connected node to another.\
+--- It returns false if the destiny node is
+--- impassable terrain, or exists a wall in
 --- between nodes.
 ---@param start Node
 ---@param destiny Node
@@ -492,12 +480,13 @@ end
 
 --- Creates a range of nodes that contains all
 --- possible paths with the specified maximum
---- movement cost from the starting point. 
+--- movement cost from the starting point.
 ---
----Example:
----> local start = {2,2}\
----> local max_cost = 5\
----> local node_range_a = my_graph:constructNodeRange(start, max_cost, 'manhattan')
+---```lua
+--- local start = {2,2}
+--- local max_cost = 5
+--- local node_range_a = my_graph:constructNodeRange(start, max_cost, 'manhattan')
+---```
 ---
 ---@param start number[] Starting point
 ---@param max_cost number max cost of the paths contained
@@ -539,7 +528,7 @@ function Graph:constructNodeRange(start, max_cost, type_movement, collition_grou
             local is_way_possible =
                  not self:isImpassable(node) and
                  not self:isWallInTheWay(current, node, direction) and
-                 not self:isBlokedByObject(node, collition_groups)
+                 not self:isBlockedByObject(node, collition_groups)
             if not nodes_explored[node_id] -- is not yet explored
                 and not nodes_in_queue[node_id] -- is not yet in queue
                 then
@@ -588,11 +577,14 @@ function Graph:constructNodeRange(start, max_cost, type_movement, collition_grou
     return range
 end
 
---- Retruns a range of the explored nodes to reach a certain path
----Example:
----> local start = {2,2}\
----> local target = {10,10}\
----> local node_range_a = my_graph:findPath(start, target, 'manhattan')
+--- Returns a range of the explored nodes to reach a certain path
+---
+---```lua
+--- local start = {2,2}
+--- local target = {10,10}
+--- local node_range_a = my_graph:findPath(start, target, 'manhattan')
+---```
+---
 ---@private
 ---@param use_dikstra boolean 
 ---@param start number[] Starting point
@@ -644,7 +636,7 @@ function Graph:rangeForDirectPath(use_dikstra, start, target, type_movement, col
             local is_way_possible =
                  not self:isImpassable(node) and
                  not self:isWallInTheWay(current, node, direction) and
-                 not self:isBlokedByObject(node, collition_groups)
+                 not self:isBlockedByObject(node, collition_groups)
             if not nodes_explored[node_id] -- is not yet explored
                 and not nodes_in_queue[node_id] -- is not yet in queue
                 then
@@ -698,11 +690,11 @@ function Graph:rangeForDirectPath(use_dikstra, start, target, type_movement, col
     return range
 end
 
---- This function uses A* algorithm to return the
+--- This function uses the A* algorithm to return the
 --- node range and the path to get to the point.
---- if not path is found, it returns nothing
----@param start number[] position of the start point
----@param target number[]
+--- if no path is found, it returns nothing.
+---@param start number[] position of the start point in the grid.
+---@param target number[] position of the target point in the grid.
 ---@param type_movement? string manhattan or diagonal
 ---@param collition_groups ?string[] a list of object groups to consider as impassable terrain
 ---@return NodePath | nil, NodeRange | nil
@@ -712,9 +704,9 @@ function Graph:findPath(start, target, type_movement, collition_groups)
     return path, range
 end
 
---- This function uses Dijkstra algorithm to return the
+--- This function uses the Dijkstra algorithm to return the
 --- node range and the path to get to the point.
---- if not path is found, it returns nothing
+--- if no path is found, it returns nothing
 ---@param start number[] position of the start point
 ---@param target number[]
 ---@param type_movement? string manhattan or diagonal

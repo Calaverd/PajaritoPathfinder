@@ -1,6 +1,7 @@
---- A simple data agnostic Heap implementation.
--- This heap is build to be data agnostic, so it can work
--- comparing arbitrary data types. Is used for the priority queue
+--- A simple data-agnostic Heap implementation.
+--- This heap is built to be data agnostic, so it
+--- can work comparing arbitrary data types.
+--- Is used for the priority queue
 ---@class Heap
 ---@author Calaverd
 ---@license MIT
@@ -39,9 +40,9 @@ function Heap:new()
     return obj
 end
 
---- A internal function that compares two things.
---  This function is used to handle the internally comparisions
--- between items. You can overrride it with your own function
+--- An internal function that compares two things.\
+-- This function is used to handle the internal comparisons
+-- between items. You can override it with your function
 -- as long it returns a boolean true if object_a has more
 -- priority than object_b, False otherwise.
 ---@see setCompare
@@ -101,7 +102,7 @@ function Heap:push(data)
     self.last = self.last + 1
 end
 
---- Remove and retrive the higher priority item.
+--- Remove and retrieve the higher-priority item.
 --  This function takes the item with higher priority on
 -- the heap, removes it, and then returns it.
 -- returns nil if the heap is empty

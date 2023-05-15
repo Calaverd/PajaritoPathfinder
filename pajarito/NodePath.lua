@@ -1,11 +1,11 @@
 local Node = require "pajarito.Node"
 
---- A class that contains the necessary nodes
---- to follow in order to traverse from a node to another.
+--- A class that contains the necessary nodes to follow
+--- to traverse from one node to another.
 ---@class NodePath
 ---@field node_list Node[] A list of the nodes in the path
 ---@field weight number The cost of traversing this path in the range.
----@field contains {NodeID:number} A map to check if the path has a node, number is steep
+---@field contains {NodeID:number} A map to check if the path has a node and its steep number.
 ---@field private width number width from the graph map
 ---@field private height number height from the graph map
 ---@field private depth number depth from the graph map
@@ -45,12 +45,12 @@ function NodePath:addNode(node)
 end
 
 --- Give the number of nodes on the path.
----@return integer len
+---@return integer length
 function NodePath:getLen()
     return #self.node_list
 end
 
---- A function that chek if the
+--- A function that checks if the
 --- path contains nodes
 ---@return boolean
 function NodePath:isEmpty()
@@ -81,14 +81,14 @@ function NodePath:getNodeAtSteep(steep)
 end
 
 --- Returns in what steep this node is.
---- If there is no node in the path, returs nil.
+--- If there is no node in the path, return nil.
 ---@param node Node
 ---@return number|nil
 function NodePath:getStepAtNode(node)
     return self.contains[node.id]
 end
 
---- Returns the len of the path if it
+--- Returns the length of the path if it
 --- follows the given branch.
 ---@param branch NodePath
 ---@param bifurcation_point Node
@@ -134,8 +134,7 @@ function NodePath:iterNodes()
     end
 end
 
----Checks if a given point is contained
----whitin the NodeRange
+--- Checks if a given point is contained within the NodeRange.
 ---@param point number[]
 ---@return boolean
 function NodePath:hasPoint(point)

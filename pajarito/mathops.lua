@@ -6,9 +6,9 @@ local FMOD = math.fmod
 -- Chek if we are using Lua jit
 local v_number = tonumber(_VERSION:match '(%d%.%d)')
 
---- A simple wraper for the math operations that
+--- A simple wrapper for the math operations that
 --- are used so can they work in different lua
---- environments
+--- environments.
 ---@class mathops
 local mathops = {}
 
@@ -107,7 +107,7 @@ end
 ---@return number
 function mathops.pow(a, b) return pow(a, b) end
 
----Check if two position arrays are the same.
+---Check two position arrays against each other.
 ---@param pos_a number[]
 ---@param pos_b number[]
 ---@return boolean

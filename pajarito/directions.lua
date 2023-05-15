@@ -263,10 +263,8 @@ local function getValue(v)
     return nil
 end
 
---- The direction module, contains funtions
---- for the operation and handle of directions
---- A Node is an object that can be conected to
---- other Nodes (neighbours). 
+--- The direction module contains functions
+--- for the operation and handling of directions.
 ---@class Directions
 local directions = {}
 
@@ -289,7 +287,7 @@ function directions.setDirectionAlias(alias, value)
     user_correspondences[alias] = value
 end
 
---- This function clears the user defined alias for directions
+--- This function clears the defined alias by the user for directions
 function directions.clearAllAlias() user_correspondences = {}  end
 
 --- The sets of posible allowed directions to move that
@@ -309,9 +307,9 @@ directions["3D"] = {
 }
 
 ---Takes any number of arguments that describes the direction
--- and creates an number representation for that specific combination.
+-- and creates a number representation for that specific combination.
 ---@example wall = createWall(UP_LEFT, DOWN_RIGH, ...)
----@param ... integer|string
+---@param ...integer|string
 ---@return integer
 function directions.mergeDirections(...)
     local num = 0
@@ -352,8 +350,8 @@ function directions.splitDirections(merged_value)
     return splited_directions
 end
 
---- Takes the name or the number id of a direction AND
---- returns the fliped direction number id
+--- Takes the name or the numeric id of a direction AND
+--- returns the flipped direction number id
 ---@param direction string|integer
 ---@return integer
 function directions.flip(direction)
