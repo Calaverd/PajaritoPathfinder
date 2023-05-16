@@ -72,6 +72,40 @@ function NodeRange:getReachCostAt(id)
     return -1
 end
 
+--- Custom iterator that contains the nodes
+--- that form the `NodeRange`
+---@return fun(): number|nil, Node|nil iterator
+function NodeRange:iterNodes()
+    local node_t = self.node_traversal_weights
+    local k, v = nil, nil
+    local count = 0
+    return function()
+        k, v = next(node_t, k)
+        count = count +1
+        if not k and not v then
+            return nil, nil
+        end
+        return count, self.graphGetNode(k)
+    end
+end
+
+--- Custom iterator that contains the nodes
+--- that form the border of the `NodeRange`
+---@return fun(): number|nil, Node|nil iterator
+function NodeRange:iterBorderNodes()
+    local node_t = self.border
+    local k, v = nil, nil
+    local count = 0
+    return function()
+        k, v = next(node_t, k)
+        count = count +1
+        if not k and not v then
+            return nil, nil
+        end
+        return count, self.graphGetNode(k)
+    end
+end
+
 --- Checks if a given point is contained
 --- within the border of this NodeRange.\
 --- If it is contained returns the id of

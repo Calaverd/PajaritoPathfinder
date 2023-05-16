@@ -3,6 +3,8 @@ luac.out
 .vscode
 ./test/*
 
+test.lua
+
 # luarocks build files
 *.pajarito.rock
 *.zip
