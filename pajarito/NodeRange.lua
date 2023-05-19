@@ -61,7 +61,7 @@ end
 
 --- Returns the sum of all the weights from the tiles
 --- traveled to reach this point in the range.\
---- If the node is not contained, returns -1
+--- If the node is not contained in the range or their border, returns -1
 ---@param id NodeID
 ---@return number
 function NodeRange:getReachCostAt(id)
@@ -69,7 +69,8 @@ function NodeRange:getReachCostAt(id)
     if weight then
         return weight
     end
-    return -1
+    -- then return the border weight
+    return self.border[id] or -1
 end
 
 --- Custom iterator that contains the nodes
