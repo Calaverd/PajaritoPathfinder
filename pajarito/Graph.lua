@@ -1,8 +1,8 @@
-local Directions = require "pajarito.directions"
-local Heap = require "pajarito.heap";
-local Node = require "pajarito.Node";
-local NodeRange = require "pajarito.NodeRange";
-local mathops = require "pajarito.mathops"
+local Directions = require(__PAJARITO_MODULE_PATH..'directions')
+local Heap = require(__PAJARITO_MODULE_PATH..'heap')
+local Node = require(__PAJARITO_MODULE_PATH..'Node')
+local NodeRange = require(__PAJARITO_MODULE_PATH..'NodeRange')
+local mathops = require(__PAJARITO_MODULE_PATH..'mathops')
 local pow = mathops.pow
 local band = mathops.band
 local isSamePosition = mathops.isSamePosition

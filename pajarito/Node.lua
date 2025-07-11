@@ -1,4 +1,4 @@
-local Directions = require "pajarito.directions"
+local Directions = require(__PAJARITO_MODULE_PATH..'directions')
 
 ---@alias NodeID integer
 ---@alias ObjectID integer

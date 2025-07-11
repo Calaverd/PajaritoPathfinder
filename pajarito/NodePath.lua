@@ -1,4 +1,4 @@
-local Node = require "pajarito.Node"
+local Node = require (__PAJARITO_MODULE_PATH..'Node')
 
 --- A class that contains the necessary nodes to follow
 --- to traverse from one node to another.

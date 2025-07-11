@@ -1,8 +1,8 @@
-local Heap = require "pajarito.heap"
-local Node = require "pajarito.Node"
-local NodePath = require "pajarito.NodePath"
-local Directions = require "pajarito.directions"
-local mathops = require "pajarito.mathops"
+local Heap = require (__PAJARITO_MODULE_PATH..'heap')
+local Node = require (__PAJARITO_MODULE_PATH..'Node')
+local NodePath = require (__PAJARITO_MODULE_PATH..'NodePath')
+local Directions = require (__PAJARITO_MODULE_PATH..'directions')
+local mathops = require (__PAJARITO_MODULE_PATH..'mathops')
 local pow = mathops.pow
 
 --- Contains a set of nodes that represent the

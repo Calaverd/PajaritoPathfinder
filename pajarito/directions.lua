@@ -1,4 +1,4 @@
-local mathops = require 'pajarito.mathops'
+local mathops = require(__PAJARITO_MODULE_PATH..'mathops')
 local bor = mathops.bor;
 local band = mathops.band;
 
