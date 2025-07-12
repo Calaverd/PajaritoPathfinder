@@ -61,6 +61,15 @@ function Graph:getNode(id_node)
     return self.node_map[id_node]
 end
 
+--- Returns the node at the given position if it exists
+--- in the graph, otherwise nil.
+---@param position number[]
+---@return Node | nil
+function Graph:getNodeAt(position)
+    local id = self:positionToMapId(position)
+    return self.node_map[id]
+end
+
 ---Adds a node to this graph.
 ---@param node Node
 function Graph:addNode(node)
@@ -173,12 +182,20 @@ end
 local createWall = Directions.mergeDirections
 
 --- Adds a new wall in the given position with the
---- given facing orientations.
+--- given facing orientations. If no directions are provided,
+--- removes all walls at that position.
 ---@param position number[]
 ---@param ... number|string
 function Graph:setWall(position, ...)
     local id = self:positionToMapId(position)
-    self.walls[id] = createWall(...)
+    local arg_count = select('#', ...)
+    if arg_count == 0 then
+        -- No directions provided, remove walls at this position
+        self.walls[id] = nil
+    else
+        -- Create wall with provided directions
+        self.walls[id] = createWall(...)
+    end
 end
 
 --- Returns the wall value at the given position.\
@@ -470,6 +487,53 @@ function Graph:isWallInTheWay(start, destiny, direction)
     local direction_2 = Directions.flip(direction) -- to the direction from destiny to start
     return Directions.isWallFacingDirection(wall_in_start, direction)
         or Directions.isWallFacingDirection(wall_in_destiny, direction_2)
+end
+
+--- Check if there is a wall blocking movement between two positions.
+--- User-friendly wrapper that takes positions instead of nodes.
+---@param start_pos number[]
+---@param destiny_pos number[]
+---@param direction number
+---@return boolean way_is_blocked
+function Graph:isWallBetween(start_pos, destiny_pos, direction)
+    local start_node = self:getNodeAt(start_pos)
+    local destiny_node = self:getNodeAt(destiny_pos)
+    
+    if not start_node or not destiny_node then
+        return true  -- Consider invalid positions as blocked
+    end
+    
+    return self:isWallInTheWay(start_node, destiny_node, direction)
+end
+
+--- Check if there is a wall blocking movement between two adjacent positions.
+--- Automatically detects the direction based on position difference.
+--- Only works for adjacent positions (1 tile apart in cardinal/diagonal directions).
+---@param start_pos number[]
+---@param destiny_pos number[]
+---@return boolean way_is_blocked
+function Graph:hasWallBetween(start_pos, destiny_pos)
+    local start_node = self:getNodeAt(start_pos)
+    local destiny_node = self:getNodeAt(destiny_pos)
+    
+    if not start_node or not destiny_node then
+        return true  -- Consider invalid positions as blocked
+    end
+    
+    -- Calculate position difference
+    local dx = destiny_pos[1] - start_pos[1]
+    local dy = destiny_pos[2] - start_pos[2]
+    local dz = (destiny_pos[3] or 0) - (start_pos[3] or 0)
+    
+    -- Find matching direction based on movement delta
+    for direction, movement in pairs(Directions.movements) do
+        if movement.x == dx and movement.y == dy and movement.z == dz then
+            return self:isWallInTheWay(start_node, destiny_node, direction)
+        end
+    end
+    
+    -- Positions are not adjacent in any valid direction
+    return true
 end
 
 
