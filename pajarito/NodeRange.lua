@@ -253,27 +253,24 @@ function NodeRange:getPathTo(destination, warranty_shortest_path)
         for _,direction in ipairs( allowed_directions ) do
             local node = current_node.conections[direction]
 
-            if not node or not traversal_weights[node.id]
-                or self:isWallInTheWay(current_node, node, direction) then
-                goto continue
+            if node and traversal_weights[node.id]
+                and not self:isWallInTheWay(current_node, node, direction) then
+
+                local node_weight = traversal_weights[node.id]
+                if node_weight < best_node_weight then
+                    best_node_weight = node_weight
+                    best_node = node
+                end
+
+                -- We create a space to store the nodes that
+                -- are of the same weight
+                if not nodes_by_weight[node_weight] then
+                    nodes_by_weight[node_weight] = Heap:new()
+                    nodes_by_weight[node_weight]:setCompare(compareFun)
+                end
+
+                nodes_by_weight[node_weight]:push(node)
             end
-
-            local node_weight = traversal_weights[node.id]
-            if node_weight < best_node_weight then
-                best_node_weight = node_weight
-                best_node = node
-            end
-
-            -- We create a space to store the nodes that
-            -- are of the same weight
-            if not nodes_by_weight[node_weight] then
-                nodes_by_weight[node_weight] = Heap:new()
-                nodes_by_weight[node_weight]:setCompare(compareFun)
-            end
-
-            nodes_by_weight[node_weight]:push(node)
-
-            ::continue::
         end
 
         if not best_node then

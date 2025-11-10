@@ -542,6 +542,48 @@ function Graph:isImpassable(destiny)
     return self:getNodeWeight(destiny) == 0
 end
 
+--- Helper function to process a neighbor node during range construction
+---@private
+---@param node Node The neighbor node to process
+---@param current Node The current node
+---@param direction string The direction of the neighbor
+---@param weight number The accumulated weight to current node
+---@param max_cost? number Optional maximum cost limit
+---@param collition_groups ?string[] Optional collision groups
+---@param nodes_explored table Table of explored nodes
+---@param nodes_in_queue table Table of nodes in queue
+---@param nodes_in_border table Table of border nodes
+---@param node_queue table The priority queue
+function Graph:processNeighborNode(node, current, direction, weight, max_cost, collition_groups, nodes_explored, nodes_in_queue, nodes_in_border, node_queue)
+    if not node then
+        return
+    end
+
+    local node_id = node.id
+    local node_weight = self:getNodeWeight(node)
+    local accumulated_weight = node_weight + weight
+    local is_beyond_range = max_cost and (accumulated_weight > max_cost)
+    local is_way_possible =
+         not self:isImpassable(node) and
+         not self:isWallInTheWay(current, node, direction) and
+         not self:isBlockedByObject(node, collition_groups)
+
+    if not nodes_explored[node_id] and not nodes_in_queue[node_id] then
+        if is_way_possible and not is_beyond_range then
+            nodes_in_queue[node_id] = accumulated_weight
+            node_queue:push({node, accumulated_weight})
+            -- clean the border if we marked it before
+            nodes_in_border[node_id] = nil
+        else
+            local border_weight = accumulated_weight
+            if not is_way_possible then
+                border_weight = -1
+            end
+            nodes_in_border[node_id] = border_weight
+        end
+    end
+end
+
 --- Creates a range of nodes that contains all
 --- possible paths with the specified maximum
 --- movement cost from the starting point.
@@ -580,40 +622,7 @@ function Graph:constructNodeRange(start, max_cost, type_movement, collition_grou
 
         for _,direction in ipairs( allowed_directions ) do
             local node = current.conections[direction] --[[@as Node]]
-
-            if not node then
-                goto continue
-            end
-
-            local node_id = node.id
-            local node_weight = self:getNodeWeight(node)
-            local accumulated_weight = node_weight+weight
-            local is_beyond_range = (accumulated_weight > max_cost)
-            local is_way_possible =
-                 not self:isImpassable(node) and
-                 not self:isWallInTheWay(current, node, direction) and
-                 not self:isBlockedByObject(node, collition_groups)
-            if not nodes_explored[node_id] -- is not yet explored
-                and not nodes_in_queue[node_id] -- is not yet in queue
-                then
-                if is_way_possible and not is_beyond_range then
-                    nodes_in_queue[node_id] = accumulated_weight
-                    --- We save to the queue the node and their acumulated weight
-                    node_queue:push({node, accumulated_weight})
-                    
-                    -- clean the border if we marked it before
-                    -- (this case only happens if node was behind a wall)
-                    nodes_in_border[node_id] = nil
-                else
-                    local border_weight = accumulated_weight
-                    if not is_way_possible then
-                        border_weight = -1
-                    end
-                    nodes_in_border[node_id] = border_weight
-                end
-            end
-
-            ::continue::
+            self:processNeighborNode(node, current, direction, weight, max_cost, collition_groups, nodes_explored, nodes_in_queue, nodes_in_border, node_queue)
         end
         nodes_explored[current.id] = weight
     end
@@ -689,38 +698,7 @@ function Graph:rangeForDirectPath(use_dikstra, start, target, type_movement, col
 
         for _,direction in ipairs( allowed_directions ) do
             local node = current.conections[direction] --[[@as Node]]
-
-            if not node then
-                goto continue
-            end
-
-            local node_id = node.id
-            local node_weight = self:getNodeWeight(node)
-            local accumulated_weight = node_weight+weight
-            local is_way_possible =
-                 not self:isImpassable(node) and
-                 not self:isWallInTheWay(current, node, direction) and
-                 not self:isBlockedByObject(node, collition_groups)
-            if not nodes_explored[node_id] -- is not yet explored
-                and not nodes_in_queue[node_id] -- is not yet in queue
-                then
-                if is_way_possible then
-                    nodes_in_queue[node_id] = accumulated_weight
-                    --- We save to the queue the node and their acumulated weight
-                    node_queue:push({node, accumulated_weight})
-                    -- clean the border if we marked it before
-                    -- (this case only happens if node was behind a wall)
-                    nodes_in_border[node_id] = nil
-                else
-                    local border_weight = accumulated_weight
-                    if not is_way_possible then
-                        border_weight = -1
-                    end
-                    nodes_in_border[node_id] = border_weight
-                end
-            end
-
-            ::continue::
+            self:processNeighborNode(node, current, direction, weight, nil, collition_groups, nodes_explored, nodes_in_queue, nodes_in_border, node_queue)
         end
         nodes_explored[current.id] = weight
         if isSamePosition(current.position, target) then
