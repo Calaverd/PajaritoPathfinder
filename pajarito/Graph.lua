@@ -329,16 +329,14 @@ function Graph:removeObject(object_to_remove)
     else
         object_id = getObjectID(object_to_remove --[[@as table]])
         if self.objects[object_id] then
-            old_node = self:getNode(self.objects[object_to_remove])
+            old_node = self:getNode(self.objects[object_id])
         end
     end
     if old_node then
         old_node:removeObject(object_id)
     end
-    for _, group in pairs(self.object_groups) do
-        if self.object_groups[group][object_id] then
-            self.object_groups[group][object_id] = nil
-        end
+    for _, members in pairs(self.object_groups) do
+        members[object_id] = nil⏎
     end
     self.objects[object_id] = nil
     self.objects_ref[object_id] = nil
