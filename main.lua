@@ -14,7 +14,7 @@ local tile_map_width = #tile_map[1]
 local tile_map_height = #tile_map
 
 -- Define a table of weights and the default weights cost
--- Note: values equal or less than 0, are considered impassable terrain
+-- Note: values equal to 0 are considered impassable terrain, negative values are allowed
 local table_of_weights = {}
 table_of_weights[1] = 1  --grass    tile 1 -> 1
 table_of_weights[2] = 3  --sand     tile 2 -> 3

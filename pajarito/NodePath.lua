@@ -110,7 +110,8 @@ end
 ---@param branch NodePath
 ---@return NodePath
 function NodePath:Merge(branch)
-    self.weight = self.weight + branch.weight
+    -- weights are accumulated costs, so the total is the biggest one
+    self.weight = math.max(self.weight, branch.weight)
     local node_list = branch.node_list
     local num = #node_list
     while node_list[num] do

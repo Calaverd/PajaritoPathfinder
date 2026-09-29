@@ -3,9 +3,7 @@ local Heap = require(__PAJARITO_MODULE_PATH..'heap')
 local Node = require(__PAJARITO_MODULE_PATH..'Node')
 local NodeRange = require(__PAJARITO_MODULE_PATH..'NodeRange')
 local mathops = require(__PAJARITO_MODULE_PATH..'mathops')
-local pow = mathops.pow
 local band = mathops.band
-local isSamePosition = mathops.isSamePosition
 
 ---@diagnostic disable-next-line: deprecated
 local unpack = unpack or table.unpack
@@ -19,6 +17,40 @@ local function getObjectID(object)
 end
 
 local Node_getPointId = Node.getPointId
+
+--- Compares two heap items by their accumulated weight.\
+--- Value 1 is the Node, value 2 is the accumulated_weight!
+---@param a table
+---@param b table
+---@return boolean
+local function compareByWeight(a, b)
+    return a[2] < b[2]
+end
+
+--- Contruct a function that compares two heap items by their
+--- accumulated weight plus the estimated cost to reach the target.
+---@param target number[] position of the destiny node
+---@param is_diagonal boolean
+---@param min_weight number the cheapest weight a step can cost
+---@return fun(a:table, b:table): boolean
+local function buildCompareByWeightAndEstimate(target, is_diagonal, min_weight)
+    local abs, max = math.abs, math.max
+    local tx, ty, tz = target[1], target[2], target[3] or 0
+
+    local function estimate(node)
+        local position = node.position
+        local dx = abs(position[1] - tx)
+        local dy = abs(position[2] - ty)
+        local dz = abs((position[3] or 0) - tz)
+        local steps = is_diagonal and max(dx, dy, dz) or (dx + dy + dz)
+        return steps * min_weight
+    end
+
+    local function compareByWeightAndEstimate(a, b)
+        return a[2] + estimate(a[1]) < b[2] + estimate(b[1])
+    end
+    return compareByWeightAndEstimate
+end
 
 --- A class for the representation of
 --- maps as a Graph. Is composed of nodes and allows for
@@ -291,15 +323,15 @@ function Graph:translateObject(object_to_move, new_position)
         end
     end
     local new_node = self:getNode(self:positionToMapId(new_position))
+    if not new_node then
+        return false
+    end
     if old_node then
         old_node:removeObject(object_id)
     end
-    if new_node then
-        new_node:addObject(object_id)
-        self.objects[object_id] = new_node.id
-        return true
-    end
-    return false
+    new_node:addObject(object_id)
+    self.objects[object_id] = new_node.id
+    return true
 end
 
 --- If exists one or more objects in a position
@@ -378,39 +410,49 @@ end
 function Graph:newNodeHeap()
     ---@type Heap
     local heap = Heap:new();
-    heap:setCompare( function (node_a, node_b)
-        -- vale 1 is the Node, value 2 is the accumulated_weight!
-        return node_a[2] < node_b[2]
-    end )
+    heap:setCompare(compareByWeight)
     return heap
 end
 
---- Creates a new priority heap that will contain
---- Nodes and stores them based on their weight and distance.
----@param position number[] position of the destiny node
+--- Creates a new priority heap for A* that will contain
+--- Nodes and stores them based on their accumulated weight
+--- plus an estimate of the remaining cost to the target.\
+--- The estimate never overestimates, so the path found is the cheapest.
+---@param target number[] position of the destiny node
+---@param type_movement? string manhattan or diagonal
 ---@return Heap
-function Graph:newNodeHeapDistance(position)
+function Graph:newNodeHeapAStar(target, type_movement)
     ---@type Heap
     local heap = Heap:new();
 
-    local function compareByWeightDistance(start_x, start_y, start_z)
-        return (function (a, b)
-            local node_a = a[1]
-            local node_b = b[1]
-            local w_a = a[2]
-            local w_b = b[2]
-            local ax,ay,az = unpack(node_a.position)
-            local bx,by,bz = unpack(node_b.position)
-            local cost_a = w_a * (pow(ax-start_x,2) + pow(ay-start_y,2) + pow((az or 0)-(start_z or 0),2))
-            local cost_b = w_b * (pow(bx-start_x,2) + pow(by-start_y,2) + pow((bz or 0)-(start_z or 0),2))
-            return cost_a < cost_b
-        end)
+    -- ponytail: O(nodes) scan per search, cache it if findPath shows up in a profiler
+    local min_weight = math.huge
+    for _, node in pairs(self.node_map) do
+        local weight = self:getNodeWeight(node)
+        if weight ~= 0 and weight < min_weight then
+            min_weight = weight
+        end
+    end
+    -- Negative weights, portals and wrapping can make the real cost
+    -- lower than any distance estimate. Fall back to Dijkstra.
+    if min_weight == math.huge or min_weight < 0
+        or next(self.portals) or (self.settings.wrap or 0) ~= 0 then
+        min_weight = 0
     end
 
-    heap:setCompare(compareByWeightDistance(position[1], position[2], position[3]))
+    heap:setCompare(buildCompareByWeightAndEstimate(target, type_movement == 'diagonal', min_weight))
     return heap
 end
 
+
+--- Returns the width, height and depth of the map.
+---@return number width, number height, number depth
+function Graph:getDimensions()
+    if self.settings.type == '2D' then
+        return #self.settings.map[1], #self.settings.map, 0
+    end
+    return 0, 0, 0
+end
 
 --- Converts a position given as a list to the
 --- corresponding node ID in the map.
@@ -419,13 +461,7 @@ end
 ---@param position number[] The position with the x, y, and z coordinates packed.
 ---@return NodeID id corresponds to the given position in the graph's map.
 function Graph:positionToMapId(position)
-    local width = 0
-    local height = 0
-    local depth = 0
-    if self.settings.type == '2D' then
-        height = #self.settings.map
-        width = #self.settings.map[1]
-    end
+    local width, height, depth = self:getDimensions()
     local x,y,z = unpack(position)
     return Node_getPointId(x or 0, y or 0, z or 0, width, height, depth)
 end
@@ -566,20 +602,70 @@ function Graph:processNeighborNode(node, current, direction, weight, max_cost, c
          not self:isWallInTheWay(current, node, direction) and
          not self:isBlockedByObject(node, collition_groups)
 
-    if not nodes_explored[node_id] and not nodes_in_queue[node_id] then
-        if is_way_possible and not is_beyond_range then
+    if nodes_explored[node_id] then
+        return
+    end
+    local queued_weight = nodes_in_queue[node_id]
+    if is_way_possible and not is_beyond_range then
+        -- A* can reach a queued node again by a cheaper way,
+        -- the old entry in the heap becomes stale and is skipped.
+        if not queued_weight or accumulated_weight < queued_weight then
             nodes_in_queue[node_id] = accumulated_weight
             node_queue:push({node, accumulated_weight})
             -- clean the border if we marked it before
             nodes_in_border[node_id] = nil
-        else
-            local border_weight = accumulated_weight
-            if not is_way_possible then
-                border_weight = -1
-            end
-            nodes_in_border[node_id] = border_weight
         end
+    elseif not queued_weight then
+        local border_weight = accumulated_weight
+        if not is_way_possible then
+            border_weight = -1
+        end
+        nodes_in_border[node_id] = border_weight
     end
+end
+
+--- Pops the next node to explore from the queue, skipping the stale
+--- entries left behind when a node was queued again by a cheaper way.\
+--- Returns nil when the queue is empty.
+---@private
+---@param node_queue Heap
+---@param nodes_in_queue table
+---@return Node|nil node, number|nil weight
+function Graph:popNextNode(node_queue, nodes_in_queue)
+    local poped = node_queue:pop()
+    while poped do
+        local node, weight = poped[1], poped[2]
+        if nodes_in_queue[node.id] == weight then
+            nodes_in_queue[node.id] = nil
+            return node, weight
+        end
+        poped = node_queue:pop()
+    end
+    return nil, nil
+end
+
+--- Wraps the result of a search in a NodeRange.
+---@private
+---@param start_id NodeID
+---@param range number
+---@param nodes_explored table
+---@param nodes_in_border table
+---@param type_movement? string
+---@return NodeRange
+function Graph:newNodeRange(start_id, range, nodes_explored, nodes_in_border, type_movement)
+    local width, height, depth = self:getDimensions()
+    return NodeRange:new({
+        range = range,
+        start_id = start_id,
+        node_traversal_weights = nodes_explored,
+        border = nodes_in_border,
+        type_movement  = type_movement or "manhattan",
+        width = width, height = height, depth = depth,
+        map_type = self.settings.type,
+        graphGetNode = function (id) return self:getNode(id) end,
+        graphIsWallInTheWay = function (origin, destiny, direction)
+            return self:isWallInTheWay(origin, destiny, direction) end
+    })
 end
 
 --- Creates a range of nodes that contains all
@@ -599,53 +685,29 @@ end
 ---@return NodeRange range
 function Graph:constructNodeRange(start, max_cost, type_movement, collition_groups)
     local start_node = self:getNode( self:positionToMapId(start) )
+    local nodes_explored = {}
+    local nodes_in_border = {}
     if not start_node then
-        return {}
+        return self:newNodeRange(-1, max_cost, nodes_explored, nodes_in_border, type_movement)
     end
     local start_weight =  0 -- self:getNodeWeight(start_node)
-    local nodes_explored = {}
     local nodes_in_queue = {}
-    local nodes_in_border = {}
     local node_queue = self:newNodeHeap()
     local allowed_directions = Directions[self.settings.type][type_movement or 'manhattan']
 
-    nodes_explored[start_node.id] = start_weight;
+    nodes_in_queue[start_node.id] = start_weight;
     node_queue:push({start_node, start_weight});
-    while node_queue:getSize() > 0 do
-
-        local poped = node_queue:pop()
-        local current = poped[1] --[[@as Node]]
-        local weight = nodes_in_queue[current.id] or start_weight
-        nodes_in_queue[current.id] = nil;
-
+    local current, weight = self:popNextNode(node_queue, nodes_in_queue)
+    while current do
+        nodes_explored[current.id] = weight
         for _,direction in ipairs( allowed_directions ) do
             local node = current.conections[direction] --[[@as Node]]
             self:processNeighborNode(node, current, direction, weight, max_cost, collition_groups, nodes_explored, nodes_in_queue, nodes_in_border, node_queue)
         end
-        nodes_explored[current.id] = weight
+        current, weight = self:popNextNode(node_queue, nodes_in_queue)
     end
 
-    local width = 0
-    local height = 0
-    local depth = 0
-    if self.settings.type == '2D' then
-        height = #self.settings.map
-        width = #self.settings.map[1]
-    end
-
-    local range = NodeRange:new({
-        range = max_cost,
-        start_id = start_node.id,
-        node_traversal_weights = nodes_explored,
-        border = nodes_in_border,
-        type_movement  = type_movement or "manhattan",
-        width = width, height = height, depth = depth,
-        map_type = self.settings.type,
-        graphGetNode = function (id) return self:getNode(id) end,
-        graphIsWallInTheWay = function (origin, destiny, direction)
-            return self:isWallInTheWay(origin, destiny, direction) end
-    })
-    return range
+    return self:newNodeRange(start_node.id, max_cost, nodes_explored, nodes_in_border, type_movement)
 end
 
 --- Returns a range of the explored nodes to reach a certain path
@@ -667,67 +729,38 @@ function Graph:rangeForDirectPath(use_dikstra, start, target, type_movement, col
     local start_node = self:getNode( self:positionToMapId(start) )
     local target_node = self:getNode( self:positionToMapId(target) )
     local range_to_target = 0
+    local nodes_explored = {}
+    local nodes_in_border = {}
     if not start_node or not target_node then
-        return NodeRange:new({})
+        return self:newNodeRange(-1, range_to_target, nodes_explored, nodes_in_border, type_movement)
     end
     local start_weight =  0 -- self:getNodeWeight(start_node)
-    local nodes_explored = {}
     local nodes_in_queue = {}
-    local nodes_in_border = {}
-    --- We use a nodeheap that gives priority to closer ones
-    local node_queue = self:newNodeHeapDistance(target)
-    if use_dikstra then -- we use the normal heap
-        node_queue = self:newNodeHeap();
+    local node_queue
+    if use_dikstra then
+        node_queue = self:newNodeHeap()
+    else
+        node_queue = self:newNodeHeapAStar(target, type_movement)
     end
     local allowed_directions = Directions[self.settings.type][type_movement or 'manhattan']
-    local found_target = false
 
-    nodes_explored[start_node.id] = start_weight;
+    nodes_in_queue[start_node.id] = start_weight;
     node_queue:push({start_node, start_weight});
-    while not found_target do
-
-        local poped = node_queue:pop()
-        if not poped then -- no more nodes to search
+    local current, weight = self:popNextNode(node_queue, nodes_in_queue)
+    while current do
+        nodes_explored[current.id] = weight
+        if current.id == target_node.id then
+            range_to_target = weight
             break
         end
-        local current = poped[1] --[[@as Node]]
-        local weight = nodes_in_queue[current.id] or start_weight
-        nodes_in_queue[current.id] = nil;
-
         for _,direction in ipairs( allowed_directions ) do
             local node = current.conections[direction] --[[@as Node]]
             self:processNeighborNode(node, current, direction, weight, nil, collition_groups, nodes_explored, nodes_in_queue, nodes_in_border, node_queue)
         end
-        nodes_explored[current.id] = weight
-        if isSamePosition(current.position, target) then
-            found_target = true
-            range_to_target = weight
-            -- nodes_explored[node_id] = node_weight
-            break
-        end
+        current, weight = self:popNextNode(node_queue, nodes_in_queue)
     end
 
-    local width = 0
-    local height = 0
-    local depth = 0
-    if self.settings.type == '2D' then
-        height = #self.settings.map
-        width = #self.settings.map[1]
-    end
-
-    local range = NodeRange:new({
-        range = range_to_target,
-        start_id = start_node.id,
-        node_traversal_weights = nodes_explored,
-        border = nodes_in_border,
-        type_movement  = type_movement or "manhattan",
-        width = width, height = height, depth = depth,
-        map_type = self.settings.type,
-        graphGetNode = function (id) return self:getNode(id) end,
-        graphIsWallInTheWay = function (origin, destiny, direction)
-            return self:isWallInTheWay(origin, destiny, direction) end
-    })
-    return range
+    return self:newNodeRange(start_node.id, range_to_target, nodes_explored, nodes_in_border, type_movement)
 end
 
 --- This function uses the A* algorithm to return the
@@ -741,6 +774,9 @@ end
 function Graph:findPath(start, target, type_movement, collition_groups)
     local range = self:rangeForDirectPath(false, start, target, type_movement, collition_groups)
     local path = range:getPathTo(target, true)
+    if path:isEmpty() then
+        return nil, nil
+    end
     return path, range
 end
 
