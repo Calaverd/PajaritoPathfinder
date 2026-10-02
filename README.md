@@ -148,6 +148,17 @@ For the documentation in detail of the modules of pajarito, visit the [project w
 
 For the examples, at the moment, go for [our graphical ones made in love2d](https://github.com/Calaverd/Pajarito-Exampes)
 
+## Running the tests
+
+The specs run on [busted](https://lunarmodules.github.io/busted/), from the root of the repo:
+
+```sh
+luarocks install busted
+busted
+```
+
+They cover the library on its own, nothing in them needs love2d.
+
 ## License
 
 Pajarito is licensed under the MIT license.
