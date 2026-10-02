@@ -5,7 +5,7 @@ local Node = require (__PAJARITO_MODULE_PATH..'Node')
 ---@class NodePath
 ---@field node_list Node[] A list of the nodes in the path
 ---@field weight number The cost of traversing this path in the range.
----@field contains {NodeID:number} A map to check if the path has a node and its steep number.
+---@field contains table<NodeID, number> A map to check if the path has a node and its steep number.
 ---@field private width number width from the graph map
 ---@field private height number height from the graph map
 ---@field private depth number depth from the graph map

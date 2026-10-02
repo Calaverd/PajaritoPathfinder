@@ -7,6 +7,11 @@ local band = mathops.band
 
 ---@diagnostic disable-next-line: deprecated
 local unpack = unpack or table.unpack
+--- Makes a corner step lose against a side step when both
+--- cost the same. It is small on purpose: over a whole path
+--- it never adds up to a full step, so it can only decide
+--- ties, never send the path the long way around.
+local DIAGONAL_NUDGE = 1.001
 
 --- takes an object an returns a number to
 --- use as id.
@@ -32,18 +37,33 @@ end
 ---@param target number[] position of the destiny node
 ---@param is_diagonal boolean
 ---@param min_weight number the cheapest weight a step can cost
+---@param diagonal_cost number how much more a corner step costs
 ---@return fun(a:table, b:table): boolean
-local function buildCompareByWeightAndEstimate(target, is_diagonal, min_weight)
-    local abs, max = math.abs, math.max
+local function buildCompareByWeightAndEstimate(target, is_diagonal, min_weight, diagonal_cost)
+    local abs, max, min = math.abs, math.max, math.min
     local tx, ty, tz = target[1], target[2], target[3] or 0
+    -- Beyond twice the price of a side, a corner is never worth
+    -- taking, two sides get to the same place for less.
+    local corner_cost = min(diagonal_cost, 2)
 
     local function estimate(node)
         local position = node.position
         local dx = abs(position[1] - tx)
         local dy = abs(position[2] - ty)
         local dz = abs((position[3] or 0) - tz)
-        local steps = is_diagonal and max(dx, dy, dz) or (dx + dy + dz)
-        return steps * min_weight
+        if not is_diagonal then
+            return (dx + dy + dz) * min_weight
+        end
+        if dz ~= 0 then
+            -- Corners in 3d are not worked out, every step
+            -- costs at least one side, wich is still a floor.
+            return max(dx, dy, dz) * min_weight
+        end
+        -- The cheapest way to cover dx and dy is to take corners
+        -- while both are left, and sides for whatever remains.
+        local corners = min(dx, dy)
+        local sides = max(dx, dy) - corners
+        return (sides + corners * corner_cost) * min_weight
     end
 
     local function compareByWeightAndEstimate(a, b)
@@ -368,7 +388,7 @@ function Graph:removeObject(object_to_remove)
         old_node:removeObject(object_id)
     end
     for _, members in pairs(self.object_groups) do
-        members[object_id] = nil⏎
+        members[object_id] = nil
     end
     self.objects[object_id] = nil
     self.objects_ref[object_id] = nil
@@ -433,14 +453,15 @@ function Graph:newNodeHeapAStar(target, type_movement)
             min_weight = weight
         end
     end
-    -- Negative weights, portals and wrapping can make the real cost
+    -- Portals and wrapping can make the real cost
     -- lower than any distance estimate. Fall back to Dijkstra.
-    if min_weight == math.huge or min_weight < 0
+    if min_weight == math.huge
         or next(self.portals) or (self.settings.wrap or 0) ~= 0 then
         min_weight = 0
     end
 
-    heap:setCompare(buildCompareByWeightAndEstimate(target, type_movement == 'diagonal', min_weight))
+    heap:setCompare(buildCompareByWeightAndEstimate(target, type_movement == 'diagonal',
+                                                    min_weight, self:getDiagonalCost()))
     return heap
 end
 
@@ -470,17 +491,48 @@ end
 --- If the node is not in the weight_map,
 --- return the tile of the node if is a number.\
 --- If the tile of the node is not a number, returns
---- the weight as impassable
+--- the weight as impassable.\
+--- Negative weights are an error: the searches only
+--- work when every step costs something.
 ---@param node Node
 ---@return number
 function Graph:getNodeWeight(node)
+    local weight = 0
     if self.weight_map[node.tile] then
-        return self.weight_map[node.tile]
+        weight = self.weight_map[node.tile]
+    elseif node:isTileNumber() then
+        weight = node.tile --[[@as number]]
     end
-    if node:isTileNumber() then
-        return node.tile --[[@as number]]
+    if weight < 0 then
+        error(('tile %s weighs %s, weights can not be negative'):format(tostring(node.tile), weight), 2)
     end
-    return 0
+    return weight
+end
+
+--- How much more expensive is to cross a tile corner
+--- than to cross one of its sides.\
+--- By default a corner is barely more expensive, just
+--- enough to prefer a straight step when both cost the same.
+--- Set `diagonal_cost` on the graph settings to tune it,
+--- `math.sqrt(2)` charges a corner for what it really measures
+--- and 1 makes a corner as cheap as a side.
+---@return number
+function Graph:getDiagonalCost()
+    return self.settings.diagonal_cost or DIAGONAL_NUDGE
+end
+
+--- Returns what it costs to step into a node coming
+--- from one of their neighbours. Going by a corner
+--- costs more than going by a side.
+---@param destiny Node the node being stepped into
+---@param direction integer the direction followed to get there
+---@return number
+function Graph:getStepCost(destiny, direction)
+    local weight = self:getNodeWeight(destiny)
+    if Directions.is_diagonal[direction] then
+        return weight * self:getDiagonalCost()
+    end
+    return weight
 end
 
 --- Do a check against the objects in the node.
@@ -512,7 +564,7 @@ end
 --- between nodes.
 ---@param start Node
 ---@param destiny Node
----@param direction number
+---@param direction integer
 ---@return boolean way_is_posible
 function Graph:isWallInTheWay(start, destiny, direction)
     -- chek if there is a wall from start to destiny
@@ -527,7 +579,7 @@ end
 --- User-friendly wrapper that takes positions instead of nodes.
 ---@param start_pos number[]
 ---@param destiny_pos number[]
----@param direction number
+---@param direction integer
 ---@return boolean way_is_blocked
 function Graph:isWallBetween(start_pos, destiny_pos, direction)
     local start_node = self:getNodeAt(start_pos)
@@ -580,7 +632,7 @@ end
 ---@private
 ---@param node Node The neighbor node to process
 ---@param current Node The current node
----@param direction string The direction of the neighbor
+---@param direction integer The direction of the neighbor
 ---@param weight number The accumulated weight to current node
 ---@param max_cost? number Optional maximum cost limit
 ---@param collition_groups ?string[] Optional collision groups
@@ -594,8 +646,7 @@ function Graph:processNeighborNode(node, current, direction, weight, max_cost, c
     end
 
     local node_id = node.id
-    local node_weight = self:getNodeWeight(node)
-    local accumulated_weight = node_weight + weight
+    local accumulated_weight = self:getStepCost(node, direction) + weight
     local is_beyond_range = max_cost and (accumulated_weight > max_cost)
     local is_way_possible =
          not self:isImpassable(node) and
@@ -702,7 +753,9 @@ function Graph:constructNodeRange(start, max_cost, type_movement, collition_grou
         nodes_explored[current.id] = weight
         for _,direction in ipairs( allowed_directions ) do
             local node = current.conections[direction] --[[@as Node]]
-            self:processNeighborNode(node, current, direction, weight, max_cost, collition_groups, nodes_explored, nodes_in_queue, nodes_in_border, node_queue)
+            self:processNeighborNode(
+                node, current, direction, weight or 0, max_cost, collition_groups,
+                nodes_explored, nodes_in_queue, nodes_in_border, node_queue)
         end
         current, weight = self:popNextNode(node_queue, nodes_in_queue)
     end
@@ -750,12 +803,14 @@ function Graph:rangeForDirectPath(use_dikstra, start, target, type_movement, col
     while current do
         nodes_explored[current.id] = weight
         if current.id == target_node.id then
-            range_to_target = weight
+            range_to_target = weight or 0
             break
         end
         for _,direction in ipairs( allowed_directions ) do
             local node = current.conections[direction] --[[@as Node]]
-            self:processNeighborNode(node, current, direction, weight, nil, collition_groups, nodes_explored, nodes_in_queue, nodes_in_border, node_queue)
+            self:processNeighborNode(
+                node, current, direction, weight or 0, nil, collition_groups,
+                nodes_explored, nodes_in_queue, nodes_in_border, node_queue)
         end
         current, weight = self:popNextNode(node_queue, nodes_in_queue)
     end

@@ -236,6 +236,19 @@ local FULL_VON_NEUMANN_NEIGHBORHOOD = {
 
 -- Diagonal 3d is all the Von Neumann neighborhood
 
+--- Tells which directions move over more than one axis
+--- at a time, those are the diagonal ones.
+---@package
+---@type table<integer, boolean>
+local IS_DIAGONAL = {}
+for direction, movement in pairs(FULL_VON_NEUMANN_NEIGHBORHOOD) do
+    local axis_moved = 0
+    if movement.x ~= 0 then axis_moved = axis_moved + 1 end
+    if movement.y ~= 0 then axis_moved = axis_moved + 1 end
+    if movement.z ~= 0 then axis_moved = axis_moved + 1 end
+    IS_DIAGONAL[direction] = (axis_moved > 1)
+end
+
 --- A place to store user nafes for the directions
 local user_correspondences = {}
 
@@ -275,6 +288,10 @@ directions.movements = FULL_VON_NEUMANN_NEIGHBORHOOD
 --- A list of correspondences between number values
 --- to their string names
 directions.names = direction_names
+
+--- Says if a direction crosses a tile corner instead
+--- of a side. A portal is not a diagonal.
+directions.is_diagonal = IS_DIAGONAL
 
 --- The list of the possible directions
 directions.values = direction_values

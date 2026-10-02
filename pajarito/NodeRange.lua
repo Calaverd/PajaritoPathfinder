@@ -11,11 +11,11 @@ local pow = mathops.pow
 ---@class NodeRange
 ---@field start_id number id of the node from where the range starts
 ---@field range number max allowed weight for traversal
----@field node_traversal_weights {NodeID: number} map of Node id to their corresponding weight in the range
+---@field node_traversal_weights table<NodeID, number> map of Node id to their corresponding weight in the range
 ---@field type_movement string The kind of movement is used to build the range.
----@field border {NodeID: number} map of Node id that contains the border nodes to this range.
+---@field border table<NodeID, number> map of Node id that contains the border nodes to this range.
 ---@field private graphGetNode fun(id:NodeID): Node|nil
----@field private graphIsWallInTheWay fun(origin:Node,destiny:Node, direction:number): boolean
+---@field private graphIsWallInTheWay fun(origin:Node,destiny:Node, direction:integer): boolean
 ---@field private map_type string
 ---@field private width number width from the graph map
 ---@field private height number height from the graph map
@@ -25,6 +25,11 @@ local NodeRange = {}
 ---@diagnostic disable-next-line: deprecated
 local unpack = unpack or table.unpack
 local max = math.max
+
+--- Marks a node whose branch is still being solved further up the
+--- recursion of getPathTo, see getBranchTo. Running into it means the
+--- way back has walked in a circle.
+local BEING_SOLVED = {}
 
 --- Defines a new node range.
 ---@param settings table
@@ -78,12 +83,12 @@ end
 ---@return fun(): number|nil, Node|nil iterator
 function NodeRange:iterNodes()
     local node_t = self.node_traversal_weights
-    local k, v = nil, nil
+    local k = nil
     local count = 0
     return function()
-        k, v = next(node_t, k)
+        k, _ = next(node_t, k)
         count = count +1
-        if not k and not v then
+        if k == nil then
             return nil, nil
         end
         return count, self.graphGetNode(k)
@@ -95,12 +100,12 @@ end
 ---@return fun(): number|nil, Node|nil iterator
 function NodeRange:iterBorderNodes()
     local node_t = self.border
-    local k, v = nil, nil
+    local k = nil
     local count = 0
     return function()
-        k, v = next(node_t, k)
+        k, _ = next(node_t, k)
         count = count +1
-        if not k and not v then
+        if k == nil then
             return nil, nil
         end
         return count, self.graphGetNode(k)
@@ -213,10 +218,87 @@ end
 ---@package
 ---@param origin Node
 ---@param destiny Node
----@param direction number
+---@param direction integer
 ---@return boolean way_is_posible
 function NodeRange:isWallInTheWay(origin, destiny, direction)
     return self.graphIsWallInTheWay(origin, destiny, direction)
+end
+
+--- Finds the neighbours this node can step back to: the ones
+--- that are cheapest to reach from the start of the range.\
+--- Several neighbours can tie, so they come in a heap that
+--- pops first the one closest to the start.\
+--- Returns nil if there is no neighbour to step back to.
+---@package
+---@param node Node
+---@param closestToStart fun(a:Node, b:Node): boolean
+---@return Heap|nil cheapest_neighbors, number|nil their_weight
+function NodeRange:getCheapestNeighbors(node, closestToStart)
+    local traversal_weights = self.node_traversal_weights
+    local cheapest_neighbors = nil
+    local cheapest_weight = math.huge
+
+    for _, direction in ipairs(Directions[self.map_type][self.type_movement]) do
+        local neighbor = node.conections[direction]
+        local weight = neighbor and traversal_weights[neighbor.id]
+
+        if weight and not self:isWallInTheWay(node, neighbor, direction) then
+            if weight < cheapest_weight then
+                -- a cheaper one, forget the ones found so far
+                cheapest_weight = weight
+                cheapest_neighbors = Heap:new()
+                cheapest_neighbors:setCompare(closestToStart)
+            end
+            if weight == cheapest_weight and cheapest_neighbors then
+                cheapest_neighbors:push(neighbor)
+            end
+        end
+    end
+    return cheapest_neighbors, cheapest_neighbors and cheapest_weight
+end
+
+--- Gives the path from the start of the range to this node.\
+--- This is the memoization that keeps the warranty of `getPathTo` fast.
+--- Every tie on the way back opens a new branch, and every branch meets
+--- more ties, so solving each branch from scratch doubles the work at
+--- every tie. But the path to a node is the same no matter which branch
+--- asks for it, so each node is solved once and remembered in `solved_branches`.\
+--- Returns nil if the node is still being solved further up the
+--- recursion: going back through it would walk in a circle.
+---@package
+---@param node Node
+---@param solved_branches table<NodeID,NodePath|table> the branches solved so far
+---@return NodePath|nil branch
+function NodeRange:getBranchTo(node, solved_branches)
+    local branch = solved_branches[node.id]
+    if branch == BEING_SOLVED then
+        return nil
+    end
+    if not branch then
+        solved_branches[node.id] = BEING_SOLVED
+        branch = self:getPathTo(node.position, true, solved_branches)
+        solved_branches[node.id] = branch
+    end
+    return branch --[[@as NodePath]]
+end
+
+--- Solves the branch behind each of the candidates and returns
+--- the one with fewest steps. On a tie, the candidate closest to
+--- the start wins, as it is the first to come out of the heap.\
+--- Returns nil if every candidate is still being solved.
+---@package
+---@param candidates Heap the tied neighbours, see getCheapestNeighbors
+---@param solved_branches table<NodeID,NodePath|table>
+---@return NodePath|nil shortest
+function NodeRange:getShortestBranch(candidates, solved_branches)
+    local shortest = nil
+    while candidates:getSize() > 0 do
+        local branch = self:getBranchTo(candidates:pop(), solved_branches)
+        if branch and (not shortest or branch:getLen() < shortest:getLen()) then
+            shortest = branch
+        end
+    end
+    return shortest
 end
 
 --- Search if there is a path from the start node
@@ -227,85 +309,49 @@ end
 --- The NodePath is empty if the path does not exist.
 ---@param destination number[] position of the destination
 ---@param warranty_shortest_path? boolean Use only if you *absolutely* need the shortest, Can be slower on large maps.
+---@param solved_branches? table<NodeID,NodePath|table> internal, shared by the recursive calls, see getBranchTo
 ---@return NodePath path
-function NodeRange:getPathTo(destination, warranty_shortest_path)
+function NodeRange:getPathTo(destination, warranty_shortest_path, solved_branches)
+    local path = NodePath:new(0, {self.width, self.height, self.depth})
     local destination_id = self:hasPoint(destination)
-
-    local path = NodePath:new( 0, {self.width, self.height, self.depth})
     if not destination_id then
         return path
     end
 
-    local start_node_id = self.start_id
-    local traversal_weights = self.node_traversal_weights
+    -- The range already knows what it costs to reach each of its nodes.
+    -- So the path is built backwards: start at the destination and keep
+    -- stepping to the cheapest neighbour, until arriving at the start.
+    local sx, sy, sz = unpack(self:getStartNodePosition() --[[@as number[] ]])
+    local closestToStart = buildClosestDistanceCompareFunction(sx, sy, sz)
     local current_node = self:getNode(destination_id --[[@as number]]) --[[@as Node]]
-    local allowed_directions = Directions[self.map_type][self.type_movement] --[=[@as number[]]=]
-    local sx,sy,sz = unpack(self:getStartNodePosition() --[[@as number[] ]] )
-    local compareFun = buildClosestDistanceCompareFunction(sx, sy, sz)
-
     path:addNode(current_node)
-    path.weight = traversal_weights[destination_id]
-    while current_node.id ~= start_node_id do
-        local best_node = nil
-        local best_node_weight = 10000000
-        ---@type {number:Heap}
-        local nodes_by_weight = {}
-        for _,direction in ipairs( allowed_directions ) do
-            local node = current_node.conections[direction]
+    path.weight = self.node_traversal_weights[destination_id]
 
-            if node and traversal_weights[node.id]
-                and not self:isWallInTheWay(current_node, node, direction) then
-
-                local node_weight = traversal_weights[node.id]
-                if node_weight < best_node_weight then
-                    best_node_weight = node_weight
-                    best_node = node
-                end
-
-                -- We create a space to store the nodes that
-                -- are of the same weight
-                if not nodes_by_weight[node_weight] then
-                    nodes_by_weight[node_weight] = Heap:new()
-                    nodes_by_weight[node_weight]:setCompare(compareFun)
-                end
-
-                nodes_by_weight[node_weight]:push(node)
-            end
-        end
-
-        if not best_node then
+    while current_node.id ~= self.start_id do
+        local candidates, weight = self:getCheapestNeighbors(current_node, closestToStart)
+        if not candidates then
             print('Error, can not build path')
             return path
         end
-
-        -- There is more than one nodes that are a good option...
-        local heap_closest_nodes = nodes_by_weight[best_node_weight]
-        if heap_closest_nodes:getSize() > 1 then
-            if warranty_shortest_path then
-                -- You want to be ABSOLUTELY sure to get the shortest path.
-                -- We are going to take the recursive rute, and check
-                -- which node leads to the path that is trully the shortest.
-                local bifurcation_point = current_node
-                local minimun_branch = path
-                local minimun_branch_len = 100000
-                while heap_closest_nodes:getSize() > 0 do
-                    local node = heap_closest_nodes:pop()
-                    local branch = self:getPathTo(node.position, warranty_shortest_path);
-                    local branch_len = path:getIfMergedBranchLen(branch, bifurcation_point) or minimun_branch_len
-                    if minimun_branch_len > branch_len then
-                        minimun_branch_len = branch_len
-                        minimun_branch = branch
-                    end
-                end
-                return path:Merge(minimun_branch)
+        if warranty_shortest_path and candidates:getSize() > 1 then
+            -- The tied neighbours cost the same, but the ways back through
+            -- them can take a different number of steps. Solve them all and
+            -- keep the shortest. It already reaches the start, so we are done.
+            solved_branches = solved_branches or {}
+            local shortest = self:getShortestBranch(candidates, solved_branches)
+            if not shortest then
+                -- Every way back walks in a circle. Each step back is
+                -- cheaper than the last, so this should never happen.
+                print('Error, can not build path')
+                return path
             end
-            -- Or we can only use the closest to the starting point
-            -- (special thanks to zet23t for sugesting it in the love2d discord.)
-            best_node = heap_closest_nodes:pop()
+            return path:Merge(shortest)
         end
 
-        current_node = best_node
-        path.weight = max(path.weight, best_node_weight)
+        -- Without the warranty, step to the one closest to the start
+        -- (special thanks to zet23t for sugesting it in the love2d discord.)
+        current_node = candidates:pop()
+        path.weight = max(path.weight, weight)
         path:addNode(current_node)
     end
     return path
