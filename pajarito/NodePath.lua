@@ -36,10 +36,13 @@ function NodePath:new(weight, map_size)
     return obj
 end
 
----Adds a node
+--- Adds a node at the front of the path.\
+--- Paths are built from the end backwards, so each new
+--- node goes before the ones already in it.
 ---@param node Node
 function NodePath:addNode(node)
-    --read as: "contains this node at the steep..."
+    -- read as: "contains this node, it was the n-th to arrive".
+    -- The steep counted from the start is worked out in getStepAtNode
     self.contains[node.id] = #self.node_list+1
     table.insert(self.node_list, 1, node)
 end
@@ -80,28 +83,35 @@ function NodePath:getNodeAtSteep(steep)
     return self.node_list[steep]
 end
 
---- Returns in what steep this node is.
+--- Returns in what steep this node is, counted from the start
+--- of the path, so `getNodeAtSteep(getStepAtNode(node))` gives
+--- back the node.\
 --- If there is no node in the path, return nil.
 ---@param node Node
 ---@return number|nil
 function NodePath:getStepAtNode(node)
-    return self.contains[node.id]
+    local arrival = self.contains[node.id]
+    if not arrival then
+        return nil
+    end
+    -- the first node to arrive ends up the last one of the path
+    return #self.node_list + 1 - arrival
 end
 
---- Returns the length of the path if it
---- follows the given branch.
+--- Returns the length of the path if it follows the given branch:
+--- the branch, and then this path from the bifurcation point on.\
+--- Returns nil if the branch is empty or the
+--- bifurcation point is not on this path.
 ---@param branch NodePath
 ---@param bifurcation_point Node
 ---@return number|nil len
 function NodePath:getIfMergedBranchLen(branch, bifurcation_point)
-    local branch_merge_node = branch:getLast()
-    if not branch_merge_node then
+    local step = self:getStepAtNode(bifurcation_point)
+    if branch:isEmpty() or not step then
         return nil
     end
-    local branch_len = branch:getLen()
-
-    local len_at_merge_point = self:getLen()-self:getStepAtNode(bifurcation_point)
-    return branch_len+len_at_merge_point;
+    local len_from_bifurcation = self:getLen() - step + 1
+    return branch:getLen() + len_from_bifurcation
 end
 
 --- Adds the nodes of the branch to itself.

@@ -78,7 +78,7 @@ describe('walls', function()
         assert.is_nil(field:getWallAt({5,6}))
     end)
 
-    -- setWall takes the names, the checks want the numbers behind them
+    -- The checks take the numbers behind the names too
     local dir = require('pajarito').directions.values
 
     it('block the way through the side they face', function()
@@ -113,6 +113,22 @@ describe('walls', function()
             other:setWall({5,5}, 'UP')
             return other:getWallAt({5,5})
         end)())
+    end)
+
+    it('are checked by name and by alias too, the same as they are set', function()
+        local Directions = require('pajarito').directions
+        Directions.setDirectionAlias('north_wall', 'UP')
+        field:setWall({5,5}, 'UP')
+        assert.is_true(field:isWallBetween({5,5}, {5,4}, 'UP'))
+        assert.is_true(field:isWallBetween({5,4}, {5,5}, 'DOWN'), 'and from the other side')
+        assert.is_true(field:isWallBetween({5,5}, {5,4}, 'north_wall'))
+        assert.is_false(field:isWallBetween({5,5}, {5,6}, 'DOWN'))
+        Directions.clearAllAlias()
+    end)
+
+    it('refuse to check a direction that does not exist', function()
+        field:setWall({5,5}, 'UP')
+        assert.has_error(function() field:isWallBetween({5,5}, {5,4}, 'UPP') end)
     end)
 
     it('send the path around them', function()

@@ -252,13 +252,13 @@ end
 --- A place to store user nafes for the directions
 local user_correspondences = {}
 
---- Helper function that takes a value and checks
---- if is a valid direction string, value, or user
---- defined alias.
---- Returns the numerical value.
+--- Takes a direction a wall can face, given as its number,
+--- its name or a user defined alias, and returns its number.\
+--- Names of directions a wall can not face, like PORTAL,
+--- give nil, so they can not end up built into a wall.
 ---@param v any
 ---@return number|nil
-local function getValue(v)
+local function getWallFacingValue(v)
     local correspondence = user_correspondences[v]
     local default = Allowed_Wall_Facing_Names[v]
     if type(correspondence) == 'number' then
@@ -274,6 +274,15 @@ local function getValue(v)
         return  Allowed_Wall_Facing_Names[ correspondence ]
     end
     return nil
+end
+
+--- Like getWallFacingValue, but takes any direction, also the
+--- ones a wall can not face, like PORTAL or the 3d corners.
+--- For checking and flipping directions, not for building walls.
+---@param v any
+---@return number|nil
+local function resolveValueToDirection(v)
+    return getWallFacingValue(v) or direction_values[v] or direction_values[user_correspondences[v]]
 end
 
 --- The direction module contains functions
@@ -332,7 +341,7 @@ function directions.mergeDirections(...)
     local num = 0
     -- check if all the walls are on the list or valid
     for _,v in ipairs({...}) do
-        local value = getValue(v);
+        local value = getWallFacingValue(v);
         if value == nil then
             assert(false,'Invalid wall value. Given "'..tostring(v)..'".')
         end
@@ -342,15 +351,21 @@ function directions.mergeDirections(...)
 end
 
 --- Checks if the wall can block the movement
---- in the given direction.
+--- in the given direction.\
+--- The direction can be its number, its name or a user alias,
+--- the same as when the wall was set.
 ---@param wall integer
----@param direction integer
+---@param direction integer|string
 ---@return boolean
 function directions.isWallFacingDirection(wall,direction)
-    if not wall or not Allowed_Wall_Facing[direction] then
+    local value = resolveValueToDirection(direction)
+    if value == nil then
+        error('Invalid direction value. Given "'..tostring(direction)..'".', 2)
+    end
+    if not wall or not Allowed_Wall_Facing[value] then
         return false
     end
-    return band(wall,Allowed_Wall_Facing[direction]) == direction
+    return band(wall,Allowed_Wall_Facing[value]) == value
 end
 
 --- Takes the merged directions value and
@@ -367,12 +382,12 @@ function directions.splitDirections(merged_value)
     return splited_directions
 end
 
---- Takes the name or the numeric id of a direction AND
---- returns the flipped direction number id
+--- Takes the name, the numeric id or a user alias
+--- of a direction and returns the flipped direction number id
 ---@param direction string|integer
 ---@return integer
 function directions.flip(direction)
-    return Allowed_Flips[direction]
+    return Allowed_Flips[resolveValueToDirection(direction)]
 end
 
 return directions

@@ -132,12 +132,21 @@ describe('a path', function()
         assert.is_nil(path:getNodeAtSteep(99))
     end)
 
-    it('counts the steps of getStepAtNode from the last node backwards', function()
-        -- Careful, the two are not the inverse of each other: getNodeAtSteep
-        -- counts from the start of the path forwards and getStepAtNode counts
-        -- from its end backwards. getIfMergedBranchLen is written around that.
-        assert.are.equal(1, path:getStepAtNode(path:getLast()))
-        assert.are.equal(path:getLen(), path:getStepAtNode(path:getStart()))
+    it('counts the steps of getStepAtNode from the start, like getNodeAtSteep', function()
+        assert.are.equal(1, path:getStepAtNode(path:getStart()))
+        assert.are.equal(path:getLen(), path:getStepAtNode(path:getLast()))
+        for steep, node in path:iterNodes() do
+            assert.are.equal(steep, path:getStepAtNode(node))
+            assert.are.equal(node, path:getNodeAtSteep(path:getStepAtNode(node)))
+        end
+    end)
+
+    it('measures a branch merged at one of its nodes', function()
+        -- {4,1}..{4,3} going down, then the path from {4,1} on: 3 + 1
+        local branch = field:findPath({4,3}, {4,1})
+        assert.are.equal(4, path:getIfMergedBranchLen(branch, path:getLast()))
+        assert.are.equal(3 + 4, path:getIfMergedBranchLen(branch, path:getStart()))
+        assert.is_nil(path:getIfMergedBranchLen(branch, field:getNodeAt({9,9})))
     end)
 
     it('knows which points it covers', function()
