@@ -86,7 +86,7 @@ function NodeRange:iterNodes()
     local k = nil
     local count = 0
     return function()
-        k, _ = next(node_t, k)
+        k = next(node_t, k)
         count = count +1
         if k == nil then
             return nil, nil
@@ -103,7 +103,7 @@ function NodeRange:iterBorderNodes()
     local k = nil
     local count = 0
     return function()
-        k, _ = next(node_t, k)
+        k = next(node_t, k)
         count = count +1
         if k == nil then
             return nil, nil
