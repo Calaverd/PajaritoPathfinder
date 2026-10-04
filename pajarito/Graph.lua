@@ -693,7 +693,9 @@ function Graph:newNodeRange(start_id, range, nodes_explored, nodes_in_border, ty
         map_type = self.settings.type,
         graphGetNode = function (id) return self:getNode(id) end,
         graphIsWallInTheWay = function (origin, destiny, direction)
-            return self:isWallInTheWay(origin, destiny, direction) end
+            return self:isWallInTheWay(origin, destiny, direction) end,
+        graphGetStepCost = function (destiny, direction)
+            return self:getStepCost(destiny, direction) end
     })
 end
 

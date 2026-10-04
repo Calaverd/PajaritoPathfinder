@@ -63,6 +63,15 @@ maps.EXPENSIVE_BAND = {
     {1,1,1,1},
 }
 
+--- With corners costing math.sqrt(2), going from {1,1} to {3,3}:
+--- the middle is the cheapest neighbour of {3,3}, but the two
+--- corners through it cost 5.66, going right and around costs 5.41.
+maps.CORNER_TRAP = {
+    {4,4,1},
+    {2,4,1},
+    {2,2,4},
+}
+
 --- Taken from the map of the Standar Pathfinder example.
 maps.PATHFINDER = {
     {3,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,3},

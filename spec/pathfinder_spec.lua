@@ -161,4 +161,23 @@ describe('diagonal movement', function()
         local by_dijkstra = graph:findPathDijkstra(maps.KNIGHT, maps.BANNER, 'diagonal')
         assert.are.equal(by_dijkstra.weight, by_astar.weight)
     end)
+
+    -- Stepping back to the cheapest neighbour used to pick one behind
+    -- a corner that made the path cost more than the search said.
+    it('walks a path that costs what the search says, with real corner costs', function()
+        local graph = maps.graphOf(maps.CORNER_TRAP, {diagonal_cost = math.sqrt(2)})
+        for _, find in ipairs({'findPath', 'findPathDijkstra'}) do
+            local path, range = graph[find](graph, {1,1}, {3,3}, 'diagonal')
+            assert.is_falsy(path:hasPoint({2,2}), find..' cut through the middle')
+            local walked, previous = 0, nil
+            for _, node in path:iterNodes() do
+                if previous then
+                    walked = walked + graph:getStepCost(node, previous:directionToConnected(node))
+                end
+                previous = node
+            end
+            assert.is_true(math.abs(walked - range:getReachCostAt(path:getLast().id)) < 1e-9,
+                ('%s walked %s but reported %s'):format(find, walked, path.weight))
+        end
+    end)
 end)

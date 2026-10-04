@@ -16,6 +16,7 @@ local pow = mathops.pow
 ---@field border table<NodeID, number> map of Node id that contains the border nodes to this range.
 ---@field private graphGetNode fun(id:NodeID): Node|nil
 ---@field private graphIsWallInTheWay fun(origin:Node,destiny:Node, direction:integer): boolean
+---@field private graphGetStepCost fun(destiny:Node, direction:integer): number
 ---@field private map_type string
 ---@field private width number width from the graph map
 ---@field private height number height from the graph map
@@ -225,36 +226,42 @@ function NodeRange:isWallInTheWay(origin, destiny, direction)
 end
 
 --- Finds the neighbours this node can step back to: the ones
---- that are cheapest to reach from the start of the range.\
+--- the search could have come from, as reaching them plus the
+--- step to this node adds up to what reaching this node costs.\
+--- Being the cheapest neighbour is not enough, a corner step
+--- costs more than a side one, so the cheapest neighbour can
+--- be behind a corner that makes it the expensive way.\
 --- Several neighbours can tie, so they come in a heap that
 --- pops first the one closest to the start.\
 --- Returns nil if there is no neighbour to step back to.
 ---@package
 ---@param node Node
 ---@param closestToStart fun(a:Node, b:Node): boolean
----@return Heap|nil cheapest_neighbors, number|nil their_weight
-function NodeRange:getCheapestNeighbors(node, closestToStart)
+---@return Heap|nil steps_back, number|nil their_weight
+function NodeRange:getStepsBack(node, closestToStart)
     local traversal_weights = self.node_traversal_weights
-    local cheapest_neighbors = nil
-    local cheapest_weight = math.huge
+    local node_weight = traversal_weights[node.id]
+    local steps_back = nil
+    local steps_weight = nil
 
     for _, direction in ipairs(Directions[self.map_type][self.type_movement]) do
         local neighbor = node.conections[direction]
         local weight = neighbor and traversal_weights[neighbor.id]
+        -- Same sum the search did, so it gives the exact same number.
+        local cost_through_neighbor = weight
+            and self.graphGetStepCost(node, Directions.flip(direction)) + weight
 
-        if weight and not self:isWallInTheWay(node, neighbor, direction) then
-            if weight < cheapest_weight then
-                -- a cheaper one, forget the ones found so far
-                cheapest_weight = weight
-                cheapest_neighbors = Heap:new()
-                cheapest_neighbors:setCompare(closestToStart)
+        if cost_through_neighbor == node_weight
+            and not self:isWallInTheWay(node, neighbor, direction) then
+            if not steps_back then
+                steps_back = Heap:new()
+                steps_back:setCompare(closestToStart)
             end
-            if weight == cheapest_weight and cheapest_neighbors then
-                cheapest_neighbors:push(neighbor)
-            end
+            steps_back:push(neighbor)
+            steps_weight = math.max(steps_weight or weight, weight)
         end
     end
-    return cheapest_neighbors, cheapest_neighbors and cheapest_weight
+    return steps_back, steps_weight
 end
 
 --- Gives the path from the start of the range to this node.\
@@ -320,7 +327,7 @@ function NodeRange:getPathTo(destination, warranty_shortest_path, solved_branche
 
     -- The range already knows what it costs to reach each of its nodes.
     -- So the path is built backwards: start at the destination and keep
-    -- stepping to the cheapest neighbour, until arriving at the start.
+    -- stepping to a neighbour the search came from, until arriving at the start.
     local sx, sy, sz = unpack(self:getStartNodePosition() --[[@as number[] ]])
     local closestToStart = buildClosestDistanceCompareFunction(sx, sy, sz)
     local current_node = self:getNode(destination_id --[[@as number]]) --[[@as Node]]
@@ -328,7 +335,7 @@ function NodeRange:getPathTo(destination, warranty_shortest_path, solved_branche
     path.weight = self.node_traversal_weights[destination_id]
 
     while current_node.id ~= self.start_id do
-        local candidates, weight = self:getCheapestNeighbors(current_node, closestToStart)
+        local candidates, weight = self:getStepsBack(current_node, closestToStart)
         if not candidates then
             print('Error, can not build path')
             return path
