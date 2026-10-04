@@ -1,7 +1,7 @@
 local Directions = require(__PAJARITO_MODULE_PATH..'directions')
 
 ---@alias NodeID integer
----@alias ObjectID integer
+---@alias ObjectID table the object is its own id
 
 --- A Node is an object that can be connected to
 --- other Nodes (neighbors).

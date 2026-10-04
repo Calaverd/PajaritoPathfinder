@@ -13,14 +13,6 @@ local unpack = unpack or table.unpack
 --- ties, never send the path the long way around.
 local DIAGONAL_NUDGE = 1.001
 
---- takes an object an returns a number to
---- use as id.
----@param object table
----@return ObjectID
-local function getObjectID(object)
-    return tonumber( tostring(object):gsub('table: 0x',''), 16)
-end
-
 local Node_getPointId = Node.getPointId
 
 --- Compares two heap items by their accumulated weight.\
@@ -81,7 +73,6 @@ end
 ---@field walls table<number, number> A map for node id and wall.
 ---@field portals table<number,NodeID[]> A list of the active portals with the nodes it connects.
 ---@field objects { ObjectID:NodeID } A map to keep track of the position of objects useful to handle entities that move around the map.
----@field objects_ref {ObjectID:table} A map to get the object referenced by the object_id.
 ---@field object_groups { string:{ObjectID:boolean} } to store the groups of the objects.
 ---@field settings table A map that contains contextual info to build the graph.
 local Graph = {}
@@ -98,7 +89,6 @@ function Graph:new(settings)
     obj.settings = settings
     obj.portals = {}
     obj.objects = {}
-    obj.objects_ref = {}
     obj.object_groups = {}
     setmetatable(obj, self)
     self.__index = self
@@ -297,7 +287,8 @@ end
 --- Adds a new object.\
 --- Objects are entities that
 --- can move around the map\
---- Retruns an `object_id` to handle the object.
+--- Retruns an `object_id` to handle the object,
+--- the object itself is its own id.
 --- **This function does not care to check
 --- if the new position is a valid one.**
 ---@param object table And object to add.
@@ -305,14 +296,13 @@ end
 ---@param groups ?string[] A set of custom groups to the ones this object bellows see Graph:setObjectRules
 ---@return ObjectID object_id
 function Graph:addObject(object, position, groups)
-    local object_id = getObjectID(object)
+    local object_id = object
     local node_id = self:positionToMapId(position)
     local node = self:getNode(node_id)
     if node then
         node:addObject(object_id)
     end
     self.objects[object_id] = node_id
-    self.objects_ref[object_id] = object
     if groups then
         for _, group in ipairs(groups) do
             if not self.object_groups[group] then
@@ -326,22 +316,15 @@ end
 
 --- Moves an object from its current position
 --- on the graph to a new one.\
----@param object_to_move ObjectID|table The object to move itself or its id.
+---@param object_to_move ObjectID The object to move.
 ---@param new_position number[]
 ---@return boolean result if the translation could be fulfilled
 function Graph:translateObject(object_to_move, new_position)
-    local old_node = nil
-    local object_id = object_to_move --[[@as ObjectID]]
-    if self.objects[object_to_move] then
-        old_node = self:getNode(self.objects[object_to_move])
-    else
-        object_id = getObjectID(object_to_move --[[@as table]])
-        if self.objects[object_id] then
-            old_node = self:getNode(self.objects[object_id])
-        else
-            return false
-        end
+    local object_id = object_to_move
+    if not self.objects[object_id] then
+        return false
     end
+    local old_node = self:getNode(self.objects[object_id])
     local new_node = self:getNode(self:positionToMapId(new_position))
     if not new_node then
         return false
@@ -362,8 +345,8 @@ function Graph:getObjectsAt(position)
     local node = self:getNode(self:positionToMapId(position))
     if node and node:hasObjects() then
         local objects = {}
-        for object_id,_ in pairs(node.objects) do
-            objects[#objects+1] = self.objects_ref[object_id]
+        for object,_ in pairs(node.objects) do
+            objects[#objects+1] = object
         end
         return objects
     end
@@ -372,18 +355,11 @@ end
 
 
 ---Removes the object references in the graph
----@param object_to_remove ObjectID|any The object to delete itself or its id.
+---@param object_to_remove ObjectID The object to delete.
 function Graph:removeObject(object_to_remove)
-    local old_node = nil
-    local object_id = object_to_remove --[[@as ObjectID]]
-    if self.objects[object_to_remove] then
-        old_node = self:getNode(self.objects[object_to_remove])
-    else
-        object_id = getObjectID(object_to_remove --[[@as table]])
-        if self.objects[object_id] then
-            old_node = self:getNode(self.objects[object_id])
-        end
-    end
+    local object_id = object_to_remove
+    local node_id = self.objects[object_id]
+    local old_node = node_id and self:getNode(node_id)
     if old_node then
         old_node:removeObject(object_id)
     end
@@ -391,7 +367,6 @@ function Graph:removeObject(object_to_remove)
         members[object_id] = nil
     end
     self.objects[object_id] = nil
-    self.objects_ref[object_id] = nil
 end
 
 ---Fills the node_map of the graph using the 

@@ -258,6 +258,16 @@ describe('objects', function()
         assert.is_falsy(path:hasPoint({4,4}), 'should have walked around the knight')
     end)
 
+    -- The id used to be parsed out of tostring(object).
+    it('take objects that print themselves', function()
+        local named = setmetatable({}, {__tostring = function() return 'Knight' end})
+        field:addObject(named, {4,4}, {'Knights'})
+        assert.are.same({named}, field:getObjectsAt({4,4}))
+        assert.is_true(field:translateObject(named, {6,4}))
+        field:removeObject(named)
+        assert.is_nil(field:getObjectsAt({6,4}))
+    end)
+
     it('do not block a search that collides with another group', function()
         field:addObject(knight, {4,4}, {'Knights'})
         local path = field:findPath({3,4}, {5,4}, nil, {'Demons'})
