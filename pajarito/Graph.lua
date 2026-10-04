@@ -71,7 +71,7 @@ end
 ---@field node_map {number:Node} A list of all the nodes on this graph
 ---@field weight_map table<number,number> A map for the weight of tiles
 ---@field walls table<number, number> A map for node id and wall.
----@field portals table<number,NodeID[]> A list of the active portals with the nodes it connects.
+---@field portals table<NodeID,NodeID> Each node with a portal, and the node at the other end.
 ---@field objects { ObjectID:NodeID } A map to keep track of the position of objects useful to handle entities that move around the map.
 ---@field object_groups { string:{ObjectID:boolean} } to store the groups of the objects.
 ---@field settings table A map that contains contextual info to build the graph.
@@ -179,7 +179,8 @@ function Graph:createPortalBetween(point_a, point_b)
     if n1 and n2 then
         if not n1:hasPortal() and not n2:hasPortal() then
             n1:makeTwoWayLinkWith(n2,0) -- direction 0, portal
-            self.portals[mathops.bxor(n1.id, n2.id)] = {n1.id, n2.id}
+            self.portals[n1.id] = n2.id
+            self.portals[n2.id] = n1.id
             return true
         end
     end
@@ -197,10 +198,12 @@ function Graph:removePortalBetween(point_a, point_b)
     local n2 = self:getNode(self:positionToMapId(point_b))
     if n1 and n2 then
         -- check if exists the portal
-        local portal_id = mathops.bxor(n1.id, n2.id)
-        if self.portals[portal_id] then
-            n1:clearTwoWayLinkWith(n2)
-            self.portals[portal_id] = nil
+        if self.portals[n1.id] == n2.id then
+            -- only the portal link, neighbours can be linked by a side too
+            n1.conections[0] = nil
+            n2.conections[0] = nil
+            self.portals[n1.id] = nil
+            self.portals[n2.id] = nil
             return true
         end
     end

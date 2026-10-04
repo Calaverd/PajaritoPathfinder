@@ -211,6 +211,27 @@ describe('portals', function()
     it('say when there was nothing to take down', function()
         assert.is_false(field:removePortalBetween({2,2}, {23,13}))
     end)
+
+    -- They used to be kept under the xor of both ids, where two
+    -- unrelated portals can land on the same key. On the first row
+    -- the id is x, and 1 xor 2 is 3, same as 4 xor 7.
+    it('keep track of each portal on its own', function()
+        local a1, a2, b1, b2 = {1,1}, {2,1}, {4,1}, {7,1}
+        assert.is_true(field:createPortalBetween(a1, a2))
+        assert.is_true(field:createPortalBetween(b1, b2))
+        assert.is_false(field:removePortalBetween(a1, b2), 'those are not joined')
+        assert.is_true(field:removePortalBetween(a1, a2))
+        assert.is_true(field:removePortalBetween(b1, b2))
+    end)
+
+    it('leave the side link of neighbours alone when taken down', function()
+        field:createPortalBetween({2,2}, {3,2})
+        field:removePortalBetween({2,2}, {3,2})
+        local here, there = field:getNodeAt({2,2}), field:getNodeAt({3,2})
+        assert.is_false(here:hasPortal())
+        assert.are.equal(there, here.conections[16], 'the step to the right is gone')
+        assert.are.equal(here, there.conections[1], 'the step to the left is gone')
+    end)
 end)
 
 describe('objects', function()
