@@ -41,12 +41,14 @@ function Node.getPointId(x_pos, y_pos, z_pos, width, height, depth)
         or not isInRange(x_pos,1,width) then
         return -1
     end
+    local layer = 0
     if depth ~= 0 then
         if not isInRange(z_pos,1,depth) then
             return -1
         end
+        layer = (z_pos-1) * width * height
     end
-    return FLOOR( (z_pos* depth * width ) + ((y_pos-1) * width) + (x_pos-1) )+1
+    return FLOOR( layer + ((y_pos-1) * width) + (x_pos-1) )+1
 end
 
 ---Returns the direction a node is connected to another

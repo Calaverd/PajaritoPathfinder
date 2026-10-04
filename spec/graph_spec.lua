@@ -296,6 +296,20 @@ describe('objects', function()
     end)
 end)
 
+describe('point ids', function()
+    it('are unique across the layers of a 3d map', function()
+        local Node = require('pajarito').Node
+        local seen, count = {}, 0
+        for z = 1, 3 do for y = 1, 4 do for x = 1, 5 do
+            local id = Node.getPointId(x, y, z, 5, 4, 3)
+            assert.is_nil(seen[id], ('(%d,%d,%d) reuses id %d'):format(x, y, z, id))
+            seen[id] = true
+            count = count + 1
+        end end end
+        assert.are.equal(5 * 4 * 3, count)
+    end)
+end)
+
 describe('a wrapping map', function()
     it('lets the path cross the left and right edges', function()
         local flat = maps.graphOf(maps.MAP_WRAP)
