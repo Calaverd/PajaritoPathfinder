@@ -15,6 +15,14 @@ local DIAGONAL_NUDGE = 1.001
 
 local Node_getPointId = Node.getPointId
 
+--- The 2D direction of a step to a neighbour, by its "x,y" change.
+local STEP_DIRECTION = {}
+for direction, move in pairs(Directions.movements) do
+    if move.z == 0 and (move.x ~= 0 or move.y ~= 0) then
+        STEP_DIRECTION[move.x..','..move.y] = direction
+    end
+end
+
 --- Compares two heap items by their accumulated weight.\
 --- Value 1 is the Node, value 2 is the accumulated_weight!
 ---@param a table
@@ -70,7 +78,9 @@ end
 ---@class Graph
 ---@field node_map {number:Node} A list of all the nodes on this graph
 ---@field weight_map table<number,number> A map for the weight of tiles
+---@field sight_map table<number|string,boolean> Which tiles can be seen through, see Graph:setSightMap
 ---@field walls table<number, number> A map for node id and wall.
+---@field wall_types table<NodeID, table<integer, any>> The type of each typed wall face, by node id and direction.
 ---@field portals table<NodeID,NodeID> Each node with a portal, and the node at the other end.
 ---@field objects { ObjectID:NodeID } A map to keep track of the position of objects useful to handle entities that move around the map.
 ---@field object_groups { string:{ObjectID:boolean} } to store the groups of the objects.
@@ -85,7 +95,9 @@ function Graph:new(settings)
     local obj = {}
     obj.node_map = {} --- A list with all the nodes
     obj.weight_map = {}
+    obj.sight_map = {}
     obj.walls = {}
+    obj.wall_types = {}
     obj.settings = settings
     obj.portals = {}
     obj.objects = {}
@@ -226,21 +238,43 @@ end
 
 local createWall = Directions.mergeDirections
 
+--- The type of a wall that stops walking but lets the
+--- sight through, unless the sight map says otherwise.
+Graph.WINDOW = setmetatable({}, {__tostring = function() return 'WINDOW' end})
+
 --- Adds a new wall in the given position with the
---- given facing orientations. If no directions are provided,
---- removes all walls at that position.
+--- given facing orientations, replacing the walls already there.
+--- If no directions are provided, removes all walls at that position.\
+--- A direction can come in a table with a type, `{'UP', Graph.WINDOW}`,
+--- the type is what the sight map looks at, see `setSightMap`.
+--- Every wall stops walking, whatever its type.
 ---@param position number[]
----@param ... number|string
+---@param ... number|string|table
 function Graph:setWall(position, ...)
     local id = self:positionToMapId(position)
+    self.wall_types[id] = nil
     local arg_count = select('#', ...)
     if arg_count == 0 then
         -- No directions provided, remove walls at this position
         self.walls[id] = nil
-    else
-        -- Create wall with provided directions
-        self.walls[id] = createWall(...)
+        return
     end
+    local faces = {...}
+    for i = 1, arg_count do
+        local face = faces[i]
+        if type(face) == 'table' then
+            if face[2] == nil then
+                error(('the wall %s has no type'):format(tostring(face[1])), 2)
+            end
+            local value = createWall(face[1])
+            self.wall_types[id] = self.wall_types[id] or {}
+            for _, direction in ipairs(Directions.splitDirections(value)) do
+                self.wall_types[id][direction] = face[2]
+            end
+            faces[i] = value
+        end
+    end
+    self.walls[id] = createWall(unpack(faces, 1, arg_count))
 end
 
 --- Returns the wall value at the given position.\
@@ -250,6 +284,27 @@ end
 function Graph:getWallAt(position)
     local node_id = self:positionToMapId(position)
     return self.walls[node_id]
+end
+
+--- Returns each wall face at the given position with its type,
+--- as a list of `{direction, type}` sorted by direction.
+--- A wall with no type comes as `{direction}`, its type is nil.\
+--- If there is no wall, returns nil.
+---@param position number[]
+---@return table[]|nil
+function Graph:getWallTypesAt(position)
+    local node_id = self:positionToMapId(position)
+    local wall = self.walls[node_id]
+    if not wall then
+        return nil
+    end
+    local types = self.wall_types[node_id] or {}
+    local faces = Directions.splitDirections(wall)
+    table.sort(faces)
+    for i, direction in ipairs(faces) do
+        faces[i] = {direction, types[direction]}
+    end
+    return faces
 end
 
 ---A helper function that sets the walls from a
@@ -265,6 +320,7 @@ end
 --- Deletes all the walls in the graph
 function Graph:clearWalls()
     self.walls = {}
+    self.wall_types = {}
 end
 --- Custom iterator for the graph walls, it
 --- returns the position and the value.
@@ -356,6 +412,14 @@ function Graph:getObjectsAt(position)
     return nil
 end
 
+--- Returns the position of the node where this object
+--- stands, or nil if the graph does not have it.
+---@param object ObjectID
+---@return number[] | nil
+function Graph:getObjectPosition(object)
+    local node = self:getNode(self.objects[object])
+    return node and node.position
+end
 
 ---Removes the object references in the graph
 ---@param object_to_remove ObjectID The object to delete.
@@ -604,6 +668,147 @@ end
 function Graph:isImpassable(destiny)
     -- check if the destiny is impassable terrain.
     return self:getNodeWeight(destiny) == 0
+end
+
+--- Sets which tiles can be seen through, the same way the
+--- weight map sets what they cost to walk.\
+--- `true` lets the sight pass, `false` stops it, and a tile
+--- left out stops it only if it is impassable terrain.
+---@param new_sight_map table<number|string,boolean>
+function Graph:setSightMap(new_sight_map)
+    self.sight_map = new_sight_map
+end
+
+--- Says if the sight map lets the sight through this tile or
+--- wall type, or gives the default when the map leaves it out.
+---@param key number|string|table
+---@param default boolean
+---@return boolean
+function Graph:seesThrough(key, default)
+    local see_through = self.sight_map[key]
+    if see_through == nil then
+        return default
+    end
+    return see_through
+end
+
+--- Says if the wall on this face of the node stops the sight.\
+--- A wall with no type is solid. A typed wall lets the sight
+--- through if the sight map says so, and a window does unless
+--- the sight map says it does not.
+---@param node_id NodeID
+---@param direction integer
+---@return boolean
+function Graph:wallFaceBlocksSight(node_id, direction)
+    if not Directions.isWallFacingDirection(self.walls[node_id], direction) then
+        return false
+    end
+    local types = self.wall_types[node_id]
+    local wall_type = types and types[direction]
+    if wall_type == nil then
+        return true
+    end
+    return not self:seesThrough(wall_type, wall_type == Graph.WINDOW)
+end
+
+--- Like isWallInTheWay, but for the sight. The two faces that
+--- meet on the way, one on each node, both have to let it through.
+---@param start Node
+---@param destiny Node
+---@param direction integer
+---@return boolean
+function Graph:isSightWallInTheWay(start, destiny, direction)
+    return self:wallFaceBlocksSight(start.id, direction)
+        or self:wallFaceBlocksSight(destiny.id, Directions.flip(direction))
+end
+
+--- Says if the sight stops at this node, because of
+--- its tile or an object of one of the given groups.
+---@param node Node
+---@param blocking_groups ?string[]
+---@return boolean
+function Graph:blocksSight(node, blocking_groups)
+    return not self:seesThrough(node.tile, not self:isImpassable(node))
+        or self:isBlockedByObject(node, blocking_groups)
+end
+
+--- Checks if the sight goes in a straight line from one tile
+--- to the other, from the center of one to the center of the other.\
+--- Walls on the way stop it, and so do the tiles in between that
+--- block the sight (see `setSightMap`) or hold an object of the
+--- blocking groups. The two ends never block: a unit hiding in
+--- the woods can still see out, and still be seen.\
+--- When the line slips exactly through a corner, it is enough
+--- that one of the two tiles beside the corner lets it pass.
+---@param from number[]
+---@param to number[]
+---@param blocking_groups ?string[] object groups that stop the sight
+---@return boolean
+function Graph:hasLineOfSight(from, to, blocking_groups)
+    if not self:hasPoint(from) or not self:hasPoint(to) then
+        return false
+    end
+    local x, y = from[1], from[2]
+    local dx, dy = to[1] - x, to[2] - y
+    local nx, ny = math.abs(dx), math.abs(dy)
+    local sx, sy = dx < 0 and -1 or 1, dy < 0 and -1 or 1
+
+    -- Does the sight get from a tile into its neighbour?
+    local function seesInto(a, b)
+        local here, there = self:getNodeAt(a), self:getNodeAt(b)
+        if not here or not there then
+            return false
+        end
+        local direction = STEP_DIRECTION[(b[1]-a[1])..','..(b[2]-a[2])]
+        if self:isSightWallInTheWay(here, there, direction) then
+            return false
+        end
+        local is_end = b[1] == to[1] and b[2] == to[2]
+        return is_end or not self:blocksSight(there, blocking_groups)
+    end
+
+    -- Right through a corner the line touches four tiles. It goes on if
+    -- no wall stands on the diagonal and one of the two tiles beside it is open.
+    local function seesPastCorner(here, corner)
+        local diagonal = STEP_DIRECTION[sx..','..sy]
+        local here_node, corner_node = self:getNodeAt(here), self:getNodeAt(corner)
+        local wall_on_diagonal = self:isSightWallInTheWay(here_node, corner_node, diagonal)
+        if wall_on_diagonal then
+            return false
+        end
+        local by_x, by_y = {corner[1], here[2]}, {here[1], corner[2]}
+        local passes_by_x = seesInto(here, by_x) and seesInto(by_x, corner)
+        local passes_by_y = seesInto(here, by_y) and seesInto(by_y, corner)
+        return passes_by_x or passes_by_y
+    end
+
+    local ix, iy = 0, 0
+    while ix < nx or iy < ny do
+        local here = {x, y}
+        -- Which border does the line cross first, the one to the side
+        -- or the one above/below? (ix+0.5)/nx against (iy+0.5)/ny,
+        -- multiplied out to stay in whole numbers.
+        local side = (1 + 2*ix) * ny - (1 + 2*iy) * nx
+        local crosses_corner = side == 0
+        local crosses_side = side < 0
+        if crosses_corner then
+            if not seesPastCorner(here, {x+sx, y+sy}) then
+                return false
+            end
+            x, y, ix, iy = x+sx, y+sy, ix+1, iy+1
+        elseif crosses_side then
+            if not seesInto(here, {x+sx, y}) then
+                return false
+            end
+            x, ix = x+sx, ix+1
+        else
+            if not seesInto(here, {x, y+sy}) then
+                return false
+            end
+            y, iy = y+sy, iy+1
+        end
+    end
+    return true
 end
 
 --- Helper function to process a neighbor node during range construction

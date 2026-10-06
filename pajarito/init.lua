@@ -8,6 +8,7 @@ Pajarito.NodeRange = require(__PAJARITO_MODULE_PATH..'NodeRange')
 Pajarito.NodePath = require(__PAJARITO_MODULE_PATH..'NodePath')
 Pajarito.heap = require(__PAJARITO_MODULE_PATH..'heap')
 Pajarito.directions = require(__PAJARITO_MODULE_PATH..'directions')
+Pajarito.WINDOW = Pajarito.Graph.WINDOW
 
 
 return Pajarito

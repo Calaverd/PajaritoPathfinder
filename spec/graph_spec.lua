@@ -166,6 +166,36 @@ describe('walls', function()
         assert.is_nil(field:getWallAt({7,7}))
     end)
 
+    it('take a type in a table, next to plain directions', function()
+        local WINDOW = require('pajarito').WINDOW
+        field:setWall({5,5}, {'UP', WINDOW}, 'DOWN')
+        assert.is_true(field:hasWallBetween({5,5}, {5,4}))
+        assert.is_true(field:hasWallBetween({5,5}, {5,6}))
+        assert.are.same({ {dir.UP, WINDOW}, {dir.DOWN} }, field:getWallTypesAt({5,5}))
+    end)
+
+    it('give back each face with its type', function()
+        local WINDOW = require('pajarito').WINDOW
+        assert.is_nil(field:getWallTypesAt({5,5}))
+        field:setWall({5,5}, 'DOWN', {'UP', WINDOW}, {'LEFT', 'fence'})
+        assert.are.same({
+            {dir.LEFT, 'fence'},
+            {dir.UP, WINDOW},
+            {dir.DOWN},
+        }, field:getWallTypesAt({5,5}))
+    end)
+
+    it('refuse a table with no type, a misspelt constant is nil', function()
+        assert.has_error(function() field:setWall({5,5}, {'UP', nil}) end)
+    end)
+
+    it('forget their types when replaced', function()
+        local WINDOW = require('pajarito').WINDOW
+        field:setWall({5,5}, {'UP', WINDOW})
+        field:setWall({5,5}, 'UP')
+        assert.are.same({ {dir.UP} }, field:getWallTypesAt({5,5}))
+    end)
+
     it('are listed by the iterator', function()
         field:buildWalls({ { {5,5}, 'UP' }, { {7,7}, 'DOWN' } })
         local found = 0
@@ -293,6 +323,125 @@ describe('objects', function()
         field:addObject(knight, {4,4}, {'Knights'})
         local path = field:findPath({3,4}, {5,4}, nil, {'Demons'})
         assert.is_truthy(path:hasPoint({4,4}))
+    end)
+end)
+
+describe('an object position', function()
+    it('is where the object stands', function()
+        local field = maps.graphOf(maps.ENTITIES)
+        local knight = {}
+        field:addObject(knight, {4,4})
+        assert.are.same({4,4}, field:getObjectPosition(knight))
+        field:translateObject(knight, {6,4})
+        assert.are.same({6,4}, field:getObjectPosition(knight))
+        field:removeObject(knight)
+        assert.is_nil(field:getObjectPosition(knight))
+    end)
+end)
+
+describe('the line of sight', function()
+    local MOUNTAIN, WOODS = 3, 4
+    local field
+
+    before_each(function()
+        field = maps.graphOf(maps.open(5, 5))
+    end)
+
+    it('crosses open ground', function()
+        assert.is_true(field:hasLineOfSight({1,1}, {5,4}))
+        assert.is_true(field:hasLineOfSight({3,3}, {3,3}), 'a tile sees itself')
+    end)
+
+    it('does not leave the map', function()
+        assert.is_false(field:hasLineOfSight({1,1}, {9,9}))
+    end)
+
+    it('is stopped by impassable terrain unless told otherwise', function()
+        field:updateNodeTile({3,3}, MOUNTAIN)
+        assert.is_false(field:hasLineOfSight({1,3}, {5,3}))
+        field:setSightMap({[MOUNTAIN] = true})
+        assert.is_true(field:hasLineOfSight({1,3}, {5,3}))
+    end)
+
+    it('is stopped by a walkable tile marked as blocking', function()
+        field:updateNodeTile({3,3}, WOODS)
+        assert.is_true(field:hasLineOfSight({1,3}, {5,3}))
+        field:setSightMap({[WOODS] = false})
+        assert.is_false(field:hasLineOfSight({1,3}, {5,3}))
+    end)
+
+    it('is never stopped by its own ends', function()
+        field:updateNodeTile({1,3}, MOUNTAIN)
+        field:updateNodeTile({5,3}, MOUNTAIN)
+        assert.is_true(field:hasLineOfSight({1,3}, {5,3}))
+    end)
+
+    it('is stopped by walls', function()
+        field:setWall({3,3}, 'LEFT')
+        assert.is_false(field:hasLineOfSight({1,3}, {5,3}))
+        assert.is_false(field:hasLineOfSight({5,3}, {1,3}), 'from the other side too')
+        assert.is_true(field:hasLineOfSight({1,2}, {5,2}))
+    end)
+
+    it('goes through a window, but walking does not', function()
+        local WINDOW = require('pajarito').WINDOW
+        field:setWall({3,3}, {'LEFT', WINDOW}, 'UP')
+        assert.is_true(field:hasLineOfSight({1,3}, {5,3}))
+        assert.is_true(field:hasWallBetween({2,3}, {3,3}), 'still a wall to walk')
+        assert.is_false(field:hasLineOfSight({3,1}, {3,5}), 'the other face is solid')
+    end)
+
+    it('is stopped by a window when the sight map says so', function()
+        local WINDOW = require('pajarito').WINDOW
+        field:setWall({3,3}, {'LEFT', WINDOW})
+        field:setSightMap({[WINDOW] = false}) -- an arrow, not a spell
+        assert.is_false(field:hasLineOfSight({1,3}, {5,3}))
+    end)
+
+    it('is stopped by a typed wall unless the sight map lets it through', function()
+        local FENCE = 'fence'
+        field:setWall({3,3}, {'LEFT', FENCE})
+        assert.is_false(field:hasLineOfSight({1,3}, {5,3}))
+        field:setSightMap({[FENCE] = true})
+        assert.is_true(field:hasLineOfSight({1,3}, {5,3}))
+    end)
+
+    it('needs both faces of the same edge to let it through', function()
+        local WINDOW = require('pajarito').WINDOW
+        field:setWall({3,3}, {'LEFT', WINDOW})
+        field:setWall({2,3}, 'RIGHT')
+        assert.is_false(field:hasLineOfSight({1,3}, {5,3}))
+    end)
+
+    it('is stopped by objects of the blocking groups only', function()
+        field:addObject({}, {3,3}, {'Knights'})
+        assert.is_true(field:hasLineOfSight({1,3}, {5,3}))
+        assert.is_true(field:hasLineOfSight({1,3}, {5,3}, {'Demons'}))
+        assert.is_false(field:hasLineOfSight({1,3}, {5,3}, {'Knights'}))
+    end)
+
+    it('slips through a corner if one tile beside it is open', function()
+        field:updateNodeTile({2,1}, MOUNTAIN)
+        assert.is_true(field:hasLineOfSight({1,1}, {3,3}))
+        field:updateNodeTile({1,2}, MOUNTAIN)
+        assert.is_false(field:hasLineOfSight({1,1}, {3,3}), 'both sides are shut')
+    end)
+
+    -- Pinned in KNOWN_ISSUES.md, the line stays inside the map.
+    it('does not go around the edges of a wrapping map', function()
+        local ring = maps.graphOf(maps.open(5, 1), {wrap = 1})
+        ring:updateNodeTile({3,1}, MOUNTAIN)
+        assert.is_truthy(ring:findPath({1,1}, {5,1}), 'walking goes around')
+        assert.is_false(ring:hasLineOfSight({2,1}, {4,1}), 'the sight does not')
+    end)
+
+    it('is the same both ways', function()
+        field:updateNodeTile({3,2}, MOUNTAIN)
+        field:updateNodeTile({2,4}, MOUNTAIN)
+        for _, pair in ipairs({ {{1,1},{5,3}}, {{1,5},{4,1}}, {{2,1},{3,5}} }) do
+            local a, b = pair[1], pair[2]
+            assert.are.equal(field:hasLineOfSight(a, b), field:hasLineOfSight(b, a))
+        end
     end)
 end)
 
